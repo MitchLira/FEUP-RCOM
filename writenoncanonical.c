@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -20,28 +21,40 @@
 #define C_SET  0x03
 #define C_UA   0x07
 
+#define CONNECT_NR_TRIES  3
+#define UA_WAIT_TIME      3
+
 typedef enum { START_RCV, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP_RCV } RcvUAState;
 
+
+void unanswered();
 void updateState(RcvUAState* state, unsigned char byte);
+int receiveMessage(int fd, char* buf);
+
 
 volatile int STOP=FALSE;
+int fd, numberTries = 0;
+unsigned char SET[] = {FLAG, A, C_SET, A^C_SET, FLAG};
 
 int main(int argc, char** argv)
 {
-    int fd,c, res;
+    int i, sum = 0, speed = 0, n;
     struct termios oldtio,newtio;
     char buf[255];
     char resp[255];
-    int i, sum = 0, speed = 0;
-    unsigned char SET[5];
-    
-    if ( (argc < 2) || 
-  	     ((strcmp("/dev/ttyS0", argv[1])!=0) && 
+    unsigned char rcv_byte;
+    RcvUAState state;
+
+    if ( (argc < 2) ||
+  	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
   	      (strcmp("/dev/ttyS1", argv[1])!=0) )) {
       printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
       exit(1);
     }
 
+
+    /* Install routine to re-send SET if receiver doesn't respond */
+    (void) signal(SIGALRM, unanswered);
 
   /*
     Open serial port device for reading and writing and not as controlling tty
@@ -69,17 +82,12 @@ int main(int argc, char** argv)
     newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
 
 
-  /* 
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
-    leitura do(s) próximo(s) caracter(es)
+  /*
+    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
+    leitura do(s) prï¿½ximo(s) caracter(es)
   */
 
-    
-    SET[0] = FLAG;
-    SET[1] = A;
-    SET[2] = C_SET;
-    SET[3] = A^C_SET;
-    SET[4] = FLAG;
+
 
     tcflush(fd, TCIOFLUSH);
 
@@ -88,21 +96,24 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-    printf("New termios structure set\n");
+    printf("New termios structure set\n\n");
 
-    for (i = 0; i < 5; i++) {
-      write(fd, SET + i, sizeof(char));
-    }
+    printf("Sending SET...\n");
+    write(fd, SET, sizeof(SET));
+    alarm(UA_WAIT_TIME);
 
-    RcvUAState state = START_RCV;
+
+    state = START_RCV;
     for(i = 0; i < 5; i++) {
-      unsigned char rcv_byte;
       read(fd, &rcv_byte, 1);
       updateState(&state, rcv_byte);
     }
 
-    if(state == STOP_RCV)
-      printf("STOP\n");
+    if (state == STOP_RCV) {
+      printf("UA received successfully\n\n");
+      alarm(0);
+    }
+
 
     printf("Write your message: ");
     if (fgets(buf, sizeof(buf), stdin) == NULL) {
@@ -110,23 +121,17 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-    int n = strcspn(buf, "\n");
+    n = strcspn(buf, "\n");
     buf[n] = '\0';
 
-    
-    res = write(fd,buf,n+1);
 
-    i = 0;
-    while (STOP == FALSE) {
-      res = read(fd, resp + i, 1);
-      if (resp[i] == '\0') STOP = TRUE;
-      i++;
-    }
+    write(fd, buf, n + 1);
 
-    printf("Response: %s\n", resp);
-    
+    receiveMessage(fd, resp);
+    printf("Receiver's response: %s\n", resp);
+
     sleep(2);
-   
+
     if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
       perror("tcsetattr");
       exit(-1);
@@ -135,6 +140,23 @@ int main(int argc, char** argv)
     close(fd);
     return 0;
 }
+
+
+void unanswered() {
+  if (numberTries < CONNECT_NR_TRIES) {
+    printf("No answer was given by the receiver. Retrying...\n");
+    write(fd, SET, sizeof(SET));
+    numberTries++;
+    alarm(UA_WAIT_TIME);
+  }
+  else {
+    printf("Receiver is not replying. Shutting down...\n");
+    alarm(0);
+    close(fd);
+    exit(-1);
+  }
+}
+
 
 void updateState(RcvUAState* state, unsigned char byte) {
 
@@ -180,4 +202,22 @@ void updateState(RcvUAState* state, unsigned char byte) {
   default:
     break;
   }
+}
+
+
+int receiveMessage(int fd, char* buf) {
+  int i = 0, res;
+
+  while (STOP==FALSE) {
+    res = read(fd, buf + i, 1);
+    if (buf[i] == '\0') {
+      STOP = TRUE;
+    }
+
+    if (res == 1) {
+      i++;
+    }
+  }
+
+  return i;
 }
