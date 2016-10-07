@@ -23,20 +23,23 @@ typedef enum { START_RCV, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP_RCV } RcvSetState
 
 
 void updateState(RcvSetState* state, unsigned char byte);
-
+int receiveMessage(int fd, char* buf);
 
 
 volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
-    int fd,c, res, i;
+    int fd, i, length;
     struct termios oldtio,newtio;
     char buf[255];
-    unsigned char UA[5];
+    unsigned char UA[] = {FLAG, A, C_UA, A^C_UA, FLAG};
+    unsigned char rcv_byte;
+    RcvSetState rcv_state;
 
-    if ( (argc < 2) || 
-  	     ((strcmp("/dev/ttyS0", argv[1])!=0) && 
+
+    if ( (argc < 2) ||
+  	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
   	      (strcmp("/dev/ttyS1", argv[1])!=0) )) {
       printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
       exit(1);
@@ -47,8 +50,8 @@ int main(int argc, char** argv)
     Open serial port device for reading and writing and not as controlling tty
     because we don't want to get killed if linenoise sends CTRL-C.
   */
-  
-    
+
+
     fd = open(argv[1], O_RDWR | O_NOCTTY );
     if (fd <0) {perror(argv[1]); exit(-1); }
 
@@ -70,12 +73,10 @@ int main(int argc, char** argv)
 
 
 
-  /* 
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
-    leitura do(s) próximo(s) caracter(es)
+  /*
+    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
+    leitura do(s) prï¿½ximo(s) caracter(es)
   */
-
-
 
     tcflush(fd, TCIOFLUSH);
 
@@ -84,49 +85,39 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-    UA[0] = FLAG;
-    UA[1] = A;
-    UA[2] = C_UA;
-    UA[3] = A ^ C_UA;
-    UA[4] = FLAG;
+    printf("New termios structure set\n\n");
 
-    printf("New termios structure set\n");
 
-    
 
-    RcvSetState rcv_state = START_RCV;
+    rcv_state = START_RCV;
     for (i = 0; i < 5; i++) {
-      unsigned char rcv_byte;
       read(fd, &rcv_byte, 1);
-      updateState(&rcv_state, rcv_byte);	  
+      updateState(&rcv_state, rcv_byte);
     }
 
-    if (rcv_state == STOP_RCV)
-      printf("ola\n");
+    if (rcv_state == STOP_RCV) {
+      printf("SET received successfully\n");
+      printf("Waiting for message...\n\n");
+    }
+
 
     write(fd, UA, sizeof(UA));
 
+    length = receiveMessage(fd, buf);
+    printf("Sender's message: %s\n", buf);
 
-    i = 0;
-    while (STOP==FALSE) {       /* loop for input */
-      res = read(fd, buf + i, 1);   /* returns after 1 chars have been input */
-      if (buf[i] == '\0')
-	STOP=TRUE;
-      i++;
-    }
+    write(fd, buf, length);
 
-    write(fd, buf, i),
-
-  /* 
-    O ciclo WHILE deve ser alterado de modo a respeitar o indicado no guião 
+  /*
+    O ciclo WHILE deve ser alterado de modo a respeitar o indicado no guiï¿½o
   */
-
 
 
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
     return 0;
 }
+
 
 
 
@@ -174,4 +165,23 @@ void updateState(RcvSetState* state, unsigned char byte) {
   default:
     break;
   }
+}
+
+
+
+int receiveMessage(int fd, char* buf) {
+  int i = 0, res;
+
+  while (STOP==FALSE) {       /* loop for input */
+    res = read(fd, buf + i, 1);   /* returns after 1 chars have been input */
+    if (buf[i] == '\0') {
+       STOP=TRUE;
+     }
+
+     if (res == 1) {
+       i++;
+     }
+  }
+
+  return i;
 }
