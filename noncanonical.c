@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include "linklayer.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -19,10 +20,8 @@
 #define C_SET 0x03
 #define C_UA  0x07
 
-typedef enum { START_RCV, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP_RCV } RcvSetState;
 
 
-void updateState(RcvSetState* state, unsigned char byte);
 int receiveMessage(int fd, char* buf);
 
 
@@ -33,9 +32,6 @@ int main(int argc, char** argv)
     int fd, i, length;
     struct termios oldtio,newtio;
     char buf[255];
-    unsigned char UA[] = {FLAG, A, C_UA, A^C_UA, FLAG};
-    unsigned char rcv_byte;
-    RcvSetState rcv_state;
 
 
     if ( (argc < 2) ||
@@ -87,86 +83,18 @@ int main(int argc, char** argv)
 
     printf("New termios structure set\n\n");
 
-
-
-    rcv_state = START_RCV;
-    for (i = 0; i < 5; i++) {
-      read(fd, &rcv_byte, 1);
-      updateState(&rcv_state, rcv_byte);
-    }
-
-    if (rcv_state == STOP_RCV) {
-      printf("SET received successfully\n");
-      printf("Waiting for message...\n\n");
-    }
-
-
-    write(fd, UA, sizeof(UA));
+    llopen(fd, RECEIVER);
 
     length = receiveMessage(fd, buf);
     printf("Sender's message: %s\n", buf);
 
     write(fd, buf, length);
 
-  /*
-    O ciclo WHILE deve ser alterado de modo a respeitar o indicado no gui�o
-  */
-
 
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
     return 0;
 }
-
-
-
-
-void updateState(RcvSetState* state, unsigned char byte) {
-
-  switch(*state) {
-  case START_RCV:
-    if (byte == FLAG)
-      *state = FLAG_RCV;
-    break;
-
-  case FLAG_RCV:
-    if (byte == A)
-      *state = A_RCV;
-     else if (byte == FLAG) ;
-    else
-      *state = START_RCV;
-    break;
-
-  case A_RCV:
-    if (byte == C_SET)
-      *state = C_RCV;
-    else if (byte == FLAG)
-      *state = FLAG_RCV;
-    else
-      *state = START_RCV;
-    break;
-
-  case C_RCV:
-    if (byte ==  (A^C_SET))
-      *state = BCC_OK;
-    else if (byte == FLAG)
-      *state = FLAG_RCV;
-    else
-      *state = START_RCV;
-    break;
-
-  case BCC_OK:
-    if (byte == FLAG)
-      *state = STOP_RCV;
-    else
-      *state = START_RCV;
-    break;
-
-  default:
-    break;
-  }
-}
-
 
 
 int receiveMessage(int fd, char* buf) {

@@ -21,7 +21,7 @@ int filedes, numberTries = 0;
 
 
 /* Function headers */
-void updateState(ConnectionState* state, unsigned char byte);
+void updateState(ConnectionState* state, unsigned char byte, int status);
 void reconnect();
 
 
@@ -30,19 +30,18 @@ int llopen(int fd, int status) {
   ConnectionState state;
   unsigned char receivedByte;
   int i;
-  
+
   filedes = fd;
-
+  state = START_RCV;
   if (status == TRANSMITTER) {
-    write(fd, SET, sizeof(SET));  // Send SET to receiver
-    alarm(UA_WAIT_TIME);
-
     (void) signal(SIGALRM, reconnect);   // Install routine to re-send SET if receiver doesn't respond
 
-    state = START_RCV;
+    write(filedes, SET, sizeof(SET));  // Send SET to receiver
+    alarm(UA_WAIT_TIME);
+
     for (i = 0; i < sizeof(UA); i++) {
-      read(fd, &receivedByte, 1);
-      updateState(&state, receivedByte);
+      read(filedes, &receivedByte, 1);
+      updateState(&state, receivedByte, status);
     }
 
     if (state == STOP_RCV) {
@@ -50,15 +49,30 @@ int llopen(int fd, int status) {
       alarm(0);
       return 0;
     }
-  }
 
+  }
+  else if (status == RECEIVER) {
+
+    for (i = 0; i < sizeof(SET); i++) {
+      read(filedes, &receivedByte, 1);
+      updateState(&state, receivedByte, status);
+    }
+
+    if (state == STOP_RCV) {
+      printf("SET received successfully\n");
+      printf("Waiting for message...\n\n");
+    }
+
+    write(filedes, UA, sizeof(UA));
+
+  }
 
   return -1;
 }
 
 
 
-void updateState(ConnectionState* state, unsigned char byte) {
+void updateState(ConnectionState* state, unsigned char byte, int status) {
 
   switch(*state) {
   case START_RCV:
@@ -75,7 +89,9 @@ void updateState(ConnectionState* state, unsigned char byte) {
     break;
 
   case A_RCV:
-    if (byte == C_UA)
+    if (status == TRANSMITTER && byte == C_UA)
+      *state = C_RCV;
+    else if (status == RECEIVER && byte == C_SET)
       *state = C_RCV;
     else if (byte == FLAG)
       *state = FLAG_RCV;
@@ -84,7 +100,9 @@ void updateState(ConnectionState* state, unsigned char byte) {
     break;
 
   case C_RCV:
-    if (byte ==  (A^C_UA))
+    if (status == TRANSMITTER && byte ==  (A^C_UA))
+      *state = BCC_OK;
+    else if (status == RECEIVER && byte ==  (A^C_SET))
       *state = BCC_OK;
     else if (byte == FLAG)
       *state = FLAG_RCV;
