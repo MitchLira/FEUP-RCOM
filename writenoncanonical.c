@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include "linklayer.h"
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -21,20 +22,14 @@
 #define C_SET  0x03
 #define C_UA   0x07
 
-#define CONNECT_NR_TRIES  3
-#define UA_WAIT_TIME      3
-
-typedef enum { START_RCV, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP_RCV } RcvUAState;
 
 
 void unanswered();
-void updateState(RcvUAState* state, unsigned char byte);
 int receiveMessage(int fd, char* buf);
 
 
 volatile int STOP=FALSE;
-int fd, numberTries = 0;
-unsigned char SET[] = {FLAG, A, C_SET, A^C_SET, FLAG};
+int fd;
 
 int main(int argc, char** argv)
 {
@@ -43,7 +38,7 @@ int main(int argc, char** argv)
     char buf[255];
     char resp[255];
     unsigned char rcv_byte;
-    RcvUAState state;
+    //RcvUAState state;
 
     if ( (argc < 2) ||
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -52,9 +47,6 @@ int main(int argc, char** argv)
       exit(1);
     }
 
-
-    /* Install routine to re-send SET if receiver doesn't respond */
-    (void) signal(SIGALRM, unanswered);
 
   /*
     Open serial port device for reading and writing and not as controlling tty
@@ -98,21 +90,7 @@ int main(int argc, char** argv)
 
     printf("New termios structure set\n\n");
 
-    printf("Sending SET...\n");
-    write(fd, SET, sizeof(SET));
-    alarm(UA_WAIT_TIME);
-
-
-    state = START_RCV;
-    for(i = 0; i < 5; i++) {
-      read(fd, &rcv_byte, 1);
-      updateState(&state, rcv_byte);
-    }
-
-    if (state == STOP_RCV) {
-      printf("UA received successfully\n\n");
-      alarm(0);
-    }
+    llopen(fd, TRANSMITTER);
 
 
     printf("Write your message: ");
@@ -142,67 +120,7 @@ int main(int argc, char** argv)
 }
 
 
-void unanswered() {
-  if (numberTries < CONNECT_NR_TRIES) {
-    printf("No answer was given by the receiver. Retrying...\n");
-    write(fd, SET, sizeof(SET));
-    numberTries++;
-    alarm(UA_WAIT_TIME);
-  }
-  else {
-    printf("Receiver is not replying. Shutting down...\n");
-    alarm(0);
-    close(fd);
-    exit(-1);
-  }
-}
 
-
-void updateState(RcvUAState* state, unsigned char byte) {
-
-  switch(*state) {
-  case START_RCV:
-    if (byte == FLAG)
-      *state = FLAG_RCV;
-    break;
-
-  case FLAG_RCV:
-    if (byte == A)
-      *state = A_RCV;
-    else if (byte == FLAG) ;
-    else
-      *state = START_RCV;
-    break;
-
-  case A_RCV:
-    if (byte == C_UA)
-      *state = C_RCV;
-    else if (byte == FLAG)
-      *state = FLAG_RCV;
-    else
-      *state = START_RCV;
-    break;
-
-  case C_RCV:
-    if (byte ==  (A^C_UA))
-      *state = BCC_OK;
-    else if (byte == FLAG)
-      *state = FLAG_RCV;
-    else
-      *state = START_RCV;
-    break;
-
-  case BCC_OK:
-    if (byte == FLAG)
-      *state = STOP_RCV;
-    else
-      *state = START_RCV;
-    break;
-
-  default:
-    break;
-  }
-}
 
 
 int receiveMessage(int fd, char* buf) {

@@ -1,0 +1,122 @@
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include "linklayer.h"
+
+
+/* Definitions */
+#define FLAG   0x7E
+#define A      0x03
+#define C_SET  0x03
+#define C_UA   0x07
+#define CONNECT_NR_TRIES  3
+#define UA_WAIT_TIME      3
+
+
+/* Global/Const variables */
+const unsigned char SET[] = {FLAG, A, C_SET, A^C_SET, FLAG};
+const unsigned char UA[] = {FLAG, A, C_UA, A^C_UA, FLAG};
+int filedes, numberTries = 0;
+
+
+/* Function headers */
+void updateState(ConnectionState* state, unsigned char byte);
+void reconnect();
+
+
+
+int llopen(int fd, int status) {
+  ConnectionState state;
+  unsigned char receivedByte;
+  int i;
+  
+  filedes = fd;
+
+  if (status == TRANSMITTER) {
+    write(fd, SET, sizeof(SET));  // Send SET to receiver
+    alarm(UA_WAIT_TIME);
+
+    (void) signal(SIGALRM, reconnect);   // Install routine to re-send SET if receiver doesn't respond
+
+    state = START_RCV;
+    for (i = 0; i < sizeof(UA); i++) {
+      read(fd, &receivedByte, 1);
+      updateState(&state, receivedByte);
+    }
+
+    if (state == STOP_RCV) {
+      printf("Great success\n");
+      alarm(0);
+      return 0;
+    }
+  }
+
+
+  return -1;
+}
+
+
+
+void updateState(ConnectionState* state, unsigned char byte) {
+
+  switch(*state) {
+  case START_RCV:
+    if (byte == FLAG)
+      *state = FLAG_RCV;
+    break;
+
+  case FLAG_RCV:
+    if (byte == A)
+      *state = A_RCV;
+    else if (byte == FLAG) ;
+    else
+      *state = START_RCV;
+    break;
+
+  case A_RCV:
+    if (byte == C_UA)
+      *state = C_RCV;
+    else if (byte == FLAG)
+      *state = FLAG_RCV;
+    else
+      *state = START_RCV;
+    break;
+
+  case C_RCV:
+    if (byte ==  (A^C_UA))
+      *state = BCC_OK;
+    else if (byte == FLAG)
+      *state = FLAG_RCV;
+    else
+      *state = START_RCV;
+    break;
+
+  case BCC_OK:
+    if (byte == FLAG)
+      *state = STOP_RCV;
+    else
+      *state = START_RCV;
+    break;
+
+  default:
+    break;
+  }
+}
+
+
+void reconnect() {
+
+  if (numberTries < CONNECT_NR_TRIES) {
+    printf("No answer was given by the receiver. Retrying...\n");
+    write(filedes, SET, sizeof(SET));
+    numberTries++;
+    alarm(UA_WAIT_TIME);
+  }
+  else {
+    printf("Receiver is not replying. Shutting down...\n");
+    alarm(0);
+    close(filedes);
+    exit(-1);
+  }
+}
