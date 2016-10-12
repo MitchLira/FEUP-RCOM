@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <termios.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
 #include "linklayer.h"
 
 
@@ -12,12 +17,14 @@
 #define C_UA   0x07
 #define CONNECT_NR_TRIES  3
 #define UA_WAIT_TIME      3
+#define BAUDRATE B38400
 
 
 /* Global/Const variables */
 const unsigned char SET[] = {FLAG, A, C_SET, A^C_SET, FLAG};
 const unsigned char UA[] = {FLAG, A, C_UA, A^C_UA, FLAG};
 int filedes, numberTries = 0;
+struct termios oldtio,newtio;
 
 
 /* Function headers */
@@ -26,12 +33,53 @@ void reconnect();
 
 
 
-int llopen(int fd, int status) {
+int llopen(const char* path, int oflag, int status) {
   ConnectionState state;
   unsigned char receivedByte;
   int i;
 
-  filedes = fd;
+  /*
+    Open serial port device for reading and writing and not as controlling tty
+    because we don't want to get killed if linenoise sends CTRL-C.
+  */
+
+    filedes = open(path, oflag);
+    if (filedes <0) {perror(path); exit(-1); }
+
+    if ( tcgetattr(filedes,&oldtio) == -1) { /* save current port settings */
+      perror("tcgetattr");
+      exit(-1);
+    }
+
+    bzero(&newtio, sizeof(newtio));
+    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+    newtio.c_iflag = IGNPAR;
+    newtio.c_oflag = 0;
+
+    /* set input mode (non-canonical, no echo,...) */
+    newtio.c_lflag = 0;
+
+    newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
+    newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
+
+
+  /*
+    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
+    leitura do(s) pr�ximo(s) caracter(es)
+  */
+
+
+
+    tcflush(filedes, TCIOFLUSH);
+
+    if ( tcsetattr(filedes,TCSANOW,&newtio) == -1) {
+      perror("tcsetattr");
+      exit(-1);
+    }
+
+    printf("New termios structure set\n\n");
+
+
   state = START_RCV;
   if (status == TRANSMITTER) {
     (void) signal(SIGALRM, reconnect);   // Install routine to re-send SET if receiver doesn't respond
@@ -44,11 +92,11 @@ int llopen(int fd, int status) {
       updateState(&state, receivedByte, status);
     }
 
-    if (state == STOP_RCV) {
-      printf("Great success\n");
-      alarm(0);
-      return 0;
+    if (state != STOP_RCV) {
+      exit(-1);
     }
+
+    alarm(0);
 
   }
   else if (status == RECEIVER) {
@@ -58,16 +106,13 @@ int llopen(int fd, int status) {
       updateState(&state, receivedByte, status);
     }
 
-    if (state == STOP_RCV) {
-      printf("SET received successfully\n");
-      printf("Waiting for message...\n\n");
+    if (state != STOP_RCV) {
+      exit(-1);
     }
-
-    write(filedes, UA, sizeof(UA));
 
   }
 
-  return -1;
+  return filedes;
 }
 
 
