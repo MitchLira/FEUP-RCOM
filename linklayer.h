@@ -8,5 +8,6 @@ typedef enum { START_RCV, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP_RCV } ConnectionS
 
 
 int llopen(const char* path, int oflag, int status);
+int llwrite(int fd, char* buffer, int length);
 
 #endif

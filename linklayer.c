@@ -14,10 +14,15 @@
 #define FLAG   0x7E
 #define A      0x03
 #define C_SET  0x03
+#define C_DISC 0x0B
 #define C_UA   0x07
+#define C_RR_SUFFIX  0x05
+#define C_REJ_SUFFIX 0x01
+
 #define CONNECT_NR_TRIES  3
 #define UA_WAIT_TIME      3
 #define BAUDRATE B38400
+#define FRAME_SIZE 47
 
 
 /* Global/Const variables */
@@ -64,8 +69,6 @@ int llopen(const char* path, int oflag, int status) {
 
 
 
-
-
     tcflush(filedes, TCIOFLUSH);
 
     if ( tcsetattr(filedes,TCSANOW,&newtio) == -1) {
@@ -109,9 +112,36 @@ int llopen(const char* path, int oflag, int status) {
     write(filedes, UA, sizeof(UA));
   }
 
+
   return filedes;
 }
 
+
+
+int llwrite(int fd, char* buffer, int length) {
+  static unsigned char C = 0x00;
+  unsigned char Bcc2 = 0x00;
+  char frame[FRAME_SIZE];
+  int i, start;
+
+  frame[0] = FLAG;
+  frame[1] = A;
+  frame[2] = C;
+  frame[3] = A^C;
+
+  start = 4;
+  for (i = 0; i < length; i++) {
+    frame[start + i] = buffer[i];
+    Bcc2 ^= buffer[i];
+  }
+
+  frame[start + i] = Bcc2;
+  i++;
+  frame[start + i] = FLAG;
+
+  C ^= 0x40;
+  return (start + i);
+}
 
 
 void updateState(ConnectionState* state, unsigned char byte, int status) {

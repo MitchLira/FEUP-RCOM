@@ -16,11 +16,6 @@
 #define FALSE 0
 #define TRUE 1
 
-#define FLAG   0x7E
-#define A      0x03
-#define C_SET  0x03
-#define C_UA   0x07
-
 
 
 int receiveMessage(int fd, char* buf);
@@ -62,7 +57,11 @@ int main(int argc, char** argv)
     buf[n] = '\0';
 
 
-    write(fd, buf, n + 1);
+    write(fd, buf, n+1);
+
+    llwrite(fd, buf, n);
+    llwrite(fd, buf, n);
+    llwrite(fd, buf, n);
 
     receiveMessage(fd, resp);
     printf("Receiver's response: %s\n", resp);
