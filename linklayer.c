@@ -99,7 +99,7 @@ int llopen(const char* path, int oflag, int status) {
 
   }
   else if (status == RECEIVER) {
-    
+
     for (i = 0; i < sizeof(SET); i++) {
       read(filedes, &receivedByte, 1);
       updateState(&state, receivedByte, status);
@@ -138,6 +138,8 @@ int llwrite(int fd, char* buffer, int length) {
   frame[start + i] = Bcc2;
   i++;
   frame[start + i] = FLAG;
+
+  write(filedes, frame, start+i);
 
   C ^= 0x40;
   return (start + i);
