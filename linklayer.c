@@ -63,10 +63,6 @@ int llopen(const char* path, int oflag, int status) {
     newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
 
 
-  /*
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
-    leitura do(s) pr�ximo(s) caracter(es)
-  */
 
 
 
@@ -100,7 +96,7 @@ int llopen(const char* path, int oflag, int status) {
 
   }
   else if (status == RECEIVER) {
-
+    
     for (i = 0; i < sizeof(SET); i++) {
       read(filedes, &receivedByte, 1);
       updateState(&state, receivedByte, status);
@@ -110,6 +106,7 @@ int llopen(const char* path, int oflag, int status) {
       exit(-1);
     }
 
+    write(filedes, UA, sizeof(UA));
   }
 
   return filedes;
