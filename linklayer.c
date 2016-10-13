@@ -145,6 +145,15 @@ int llwrite(int fd, char* buffer, int length) {
   return (start + i);
 }
 
+int llread(int fd, char* buffer){
+  int res;
+  int i;
+
+  for(i = 0; i < 7; i++){
+    res = read(fd, buffer + i, 1);
+  }
+}
+
 
 void updateState(ConnectionState* state, unsigned char byte, int status) {
 

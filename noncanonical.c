@@ -43,10 +43,13 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-    length = receiveMessage(fd, buf);
-    printf("Sender's message: %s\n", buf);
+    llread(fd, buf);
+    write(fd, "AA", 3);
 
-    write(fd, buf, length);
+    //length = receiveMessage(fd, buf);
+    //printf("Sender's message: %s\n", buf);
+
+  //  write(fd, buf, length);
 
 
     tcsetattr(fd,TCSANOW,&oldtio);
