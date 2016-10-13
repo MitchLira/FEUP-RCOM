@@ -138,6 +138,7 @@ int llwrite(int fd, char* buffer, int length) {
   frame[start + i] = Bcc2;
   i++;
   frame[start + i] = FLAG;
+  i++;
 
   write(filedes, frame, start+i);
 

@@ -56,11 +56,6 @@ int main(int argc, char** argv)
     n = strcspn(buf, "\n");
     buf[n] = '\0';
 
-
-    write(fd, buf, n+1);
-
-    llwrite(fd, buf, n);
-    llwrite(fd, buf, n);
     llwrite(fd, buf, n);
 
     receiveMessage(fd, resp);
