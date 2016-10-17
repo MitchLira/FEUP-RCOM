@@ -51,6 +51,8 @@ int main(int argc, char** argv)
 
   //  write(fd, buf, length);
 
+    
+
 
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
