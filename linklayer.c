@@ -39,6 +39,8 @@ struct termios oldtio,newtio;
 void updateState(ConnectionState* state, unsigned char byte, int status);
 int needsStuffing(char byte);
 void stuff(char* frame, int index, char byte);
+int buildPacket(char* dst, char* src, int length);
+int receivePacket(int fd, char* frame);
 void reconnect();
 
 
@@ -124,66 +126,28 @@ int llopen(const char* path, int oflag, int status) {
 
 
 int llwrite(int fd, char* buffer, int length) {
-  static unsigned char C = 0x00;
-  unsigned char bcc2 = 0x00;
-  unsigned char bcc1;
-  char frame[FRAME_SIZE];
-  int i, n, start;
+  unsigned char frame[FRAME_SIZE];
+  int size;
 
-  n = 0;
-  bcc1 = A^C;
+  size = buildPacket(frame, buffer, length);
+  write(filedes, frame, size);
 
-  frame[n++] = FLAG;
-  frame[n++] = A;
-  frame[n++] = C;
-
-  if (needsStuffing(bcc1)) {
-    stuff(frame, n, bcc1);
-    n += 2;
-  }
-  else {
-    frame[n++] = bcc1;
-  }
-
-
-  for (i = 0; i < length; i++, n++) {
-    bcc2 ^= buffer[i];
-
-    printf("%02X\n", buffer[i]);
-
-    if (needsStuffing(buffer[i])) {
-      stuff(frame, n, buffer[i]);
-      n++;
-    }
-    else {
-      frame[n] = buffer[i];
-    }
-  }
-
-  if (needsStuffing(bcc2)) {
-    stuff(frame, n, bcc2);
-    n += 2;
-  }
-  else {
-    frame[n++] = bcc2;
-  }
-
-  frame[n++] = FLAG;
-
-  write(filedes, frame, n);
-
-  C ^= 0x40;
-  return n;
+  return size;
 }
 
-int llread(int fd, char* buffer){
-  int res;
-  int i;
 
-  for(i = 0; i < 10; i++) {
-    res = read(fd, buffer + i, 1);
+
+int llread(int fd, char* buffer) {
+  int res, i, size;
+  unsigned char frame[FRAME_SIZE];
+
+  size = receivePacket(fd, frame);
+
+  for (i = 0; i < size; i++) {
+    printf("%02X\n", frame[i]);
   }
 }
+
 
 
 void updateState(ConnectionState* state, unsigned char byte, int status) {
@@ -236,6 +200,7 @@ void updateState(ConnectionState* state, unsigned char byte, int status) {
   }
 }
 
+
 int needsStuffing(char byte) {
   return (byte == FLAG || byte == ESCAPE);
 }
@@ -244,6 +209,72 @@ void stuff(char* frame, int index, char byte) {
   frame[index] = ESCAPE;
   frame[index + 1] = byte ^ STUFF_BYTE;
 }
+
+int buildPacket(char* dst, char* src, int length) {
+  static unsigned char C = 0x00;
+  int i, n;
+  unsigned char BCC1;
+  unsigned char BCC2 = 0x00;
+
+  n = 0;
+  BCC1 = A^C;
+
+  dst[n++] = FLAG;
+  dst[n++] = A;
+  dst[n++] = C;
+
+  if (needsStuffing(BCC1)) {
+    stuff(dst, n, BCC1);
+    n += 2;
+  }
+  else {
+    dst[n++] = BCC1;
+  }
+
+
+  for (i = 0; i < length; i++, n++) {
+    BCC2 ^= src[i];
+
+    printf("%02X\n", src[i]);
+
+    if (needsStuffing(src[i])) {
+      stuff(dst, n, src[i]);
+      n++;
+    }
+    else {
+      dst[n] = src[i];
+    }
+  }
+
+  if (needsStuffing(BCC2)) {
+    stuff(dst, n, BCC2);
+    n += 2;
+  }
+  else {
+    dst[n++] = BCC2;
+  }
+
+  dst[n++] = FLAG;
+
+  C ^= 0x40;
+  return n;
+}
+
+
+int receivePacket(int fd, char* frame) {
+  int i, flagCount;
+
+  flagCount = 0;  i = 0;
+  for (i = 0; i < FRAME_SIZE && flagCount < 2; i++) {
+    read(fd, frame + i, 1);
+
+    if (frame[i] == FLAG)
+      flagCount++;
+  }
+
+  return i;
+}
+
 
 void reconnect() {
 
