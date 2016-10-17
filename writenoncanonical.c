@@ -46,7 +46,7 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-
+    /*
     printf("Write your message: ");
     if (fgets(buf, sizeof(buf), stdin) == NULL) {
       fprintf(stderr, "Error reading message!\n");
@@ -55,8 +55,11 @@ int main(int argc, char** argv)
 
     n = strcspn(buf, "\n");
     buf[n] = '\0';
+    */
+    buf[0] = 0x7E;
+    buf[1] = 0x7D;
 
-    llwrite(fd, buf, n);
+    llwrite(fd, buf, 2);
 
     receiveMessage(fd, resp);
     printf("Receiver's response: %s\n", resp);

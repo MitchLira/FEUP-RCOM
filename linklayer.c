@@ -16,8 +16,11 @@
 #define C_SET  0x03
 #define C_DISC 0x0B
 #define C_UA   0x07
-#define C_RR_SUFFIX  0x05
-#define C_REJ_SUFFIX 0x01
+#define C_RR_SUFFIX   0x05
+#define C_REJ_SUFFIX  0x01
+#define ESCAPE        0x7D
+#define STUFF_BYTE    0x20
+
 
 #define CONNECT_NR_TRIES  3
 #define UA_WAIT_TIME      3
@@ -34,6 +37,8 @@ struct termios oldtio,newtio;
 
 /* Function headers */
 void updateState(ConnectionState* state, unsigned char byte, int status);
+int needsStuffing(char byte);
+void stuff(char* frame, int index, char byte);
 void reconnect();
 
 
@@ -120,37 +125,62 @@ int llopen(const char* path, int oflag, int status) {
 
 int llwrite(int fd, char* buffer, int length) {
   static unsigned char C = 0x00;
-  unsigned char Bcc2 = 0x00;
+  unsigned char bcc2 = 0x00;
+  unsigned char bcc1;
   char frame[FRAME_SIZE];
-  int i, start;
+  int i, n, start;
 
-  frame[0] = FLAG;
-  frame[1] = A;
-  frame[2] = C;
-  frame[3] = A^C;
+  n = 0;
+  bcc1 = A^C;
 
-  start = 4;
-  for (i = 0; i < length; i++) {
-    frame[start + i] = buffer[i];
-    Bcc2 ^= buffer[i];
+  frame[n++] = FLAG;
+  frame[n++] = A;
+  frame[n++] = C;
+
+  if (needsStuffing(bcc1)) {
+    stuff(frame, n, bcc1);
+    n += 2;
+  }
+  else {
+    frame[n++] = bcc1;
   }
 
-  frame[start + i] = Bcc2;
-  i++;
-  frame[start + i] = FLAG;
-  i++;
 
-  write(filedes, frame, start+i);
+  for (i = 0; i < length; i++, n++) {
+    bcc2 ^= buffer[i];
+
+    printf("%02X\n", buffer[i]);
+
+    if (needsStuffing(buffer[i])) {
+      stuff(frame, n, buffer[i]);
+      n++;
+    }
+    else {
+      frame[n] = buffer[i];
+    }
+  }
+
+  if (needsStuffing(bcc2)) {
+    stuff(frame, n, bcc2);
+    n += 2;
+  }
+  else {
+    frame[n++] = bcc2;
+  }
+
+  frame[n++] = FLAG;
+
+  write(filedes, frame, n);
 
   C ^= 0x40;
-  return (start + i);
+  return n;
 }
 
 int llread(int fd, char* buffer){
   int res;
   int i;
 
-  for(i = 0; i < 7; i++){
+  for(i = 0; i < 10; i++) {
     res = read(fd, buffer + i, 1);
   }
 }
@@ -206,6 +236,14 @@ void updateState(ConnectionState* state, unsigned char byte, int status) {
   }
 }
 
+int needsStuffing(char byte) {
+  return (byte == FLAG || byte == ESCAPE);
+}
+
+void stuff(char* frame, int index, char byte) {
+  frame[index] = ESCAPE;
+  frame[index + 1] = byte ^ STUFF_BYTE;
+}
 
 void reconnect() {
 
