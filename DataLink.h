@@ -8,9 +8,9 @@
 typedef enum { START_RCV, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP_RCV } ConnectionState;
 
 
-int llopen(const char* path, int oflag, int status);
-int llwrite(int fd, char* buffer, int length);
-int llread(int fd, char* buffer);
+int llopen(const unsigned char * path, int oflag, int status);
+int llwrite(int fd, unsigned char * buffer, int length);
+int llread(int fd, unsigned char * buffer);
 int llclose(int fd);
 
 #endif
