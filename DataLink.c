@@ -48,16 +48,16 @@ struct termios oldtio,newtio;
 /* Function headers */
 void updateState(ConnectionState* state, unsigned char byte, int status);
 int needsStuffing(char byte);
-void stuff(unsigned char * frame, int index, char byte);
-int buildPacket(unsigned char * dst, unsigned char * src, int length, char controlByte);
-int receivePacket(int fd, unsigned char * frame);
-int stripAndValidate(unsigned char * dst, unsigned char * src, int length, char controlByte);
-unsigned char * receiveSU();
+void stuff(unsigned char *frame, int index, char byte);
+int buildPacket(unsigned char *dst, unsigned char *src, int length, char controlByte);
+int receivePacket(int fd, unsigned char *frame);
+int stripAndValidate(unsigned char *dst, unsigned char *src, int length, char controlByte);
+unsigned char *receiveSU();
 void reconnect();
 
 
 
-int llopen(const unsigned char * path, int oflag, int status) {
+int llopen(const unsigned char *path, int oflag, int status) {
   ConnectionState state;
   unsigned char receivedByte;
   int i;
@@ -137,7 +137,7 @@ int llopen(const unsigned char * path, int oflag, int status) {
 
 
 
-int llwrite(int fd, unsigned char * buffer, int length) {
+int llwrite(int fd, unsigned char *buffer, int length) {
   static unsigned char C = 0x00;
   char frame[FRAME_SIZE];
   char SU[SU_FRAME_SIZE];
@@ -157,7 +157,7 @@ int llwrite(int fd, unsigned char * buffer, int length) {
 
 
 
-int llread(int fd, unsigned char * buffer) {
+int llread(int fd, unsigned char *buffer) {
   static unsigned char transmitterControl = 0x00;
   static unsigned char receiverControl = R;
   int i, size, stuffedSize, frameSize;
@@ -258,12 +258,12 @@ int needsStuffing(char byte) {
   return (byte == FLAG || byte == ESCAPE);
 }
 
-void stuff(unsigned char * frame, int index, char byte) {
+void stuff(unsigned char *frame, int index, char byte) {
   frame[index] = ESCAPE;
   frame[index + 1] = byte ^ STUFF_BYTE;
 }
 
-int destuff(unsigned char * dst, unsigned char * src, int length) {
+int destuff(unsigned char *dst, unsigned char *src, int length) {
   int i, size;
   int foundEscape;
 
@@ -286,7 +286,7 @@ int destuff(unsigned char * dst, unsigned char * src, int length) {
   return size;
 }
 
-int buildPacket(unsigned char * dst, unsigned char * src, int length, char controlByte) {
+int buildPacket(unsigned char *dst, unsigned char *src, int length, char controlByte) {
   int i, n;
   unsigned char BCC1;
   unsigned char BCC2 = 0x00;
@@ -333,7 +333,7 @@ int buildPacket(unsigned char * dst, unsigned char * src, int length, char contr
 }
 
 
-int receivePacket(int fd, unsigned char * frame) {
+int receivePacket(int fd, unsigned char *frame) {
   int i, flagCount;
 
   flagCount = 0;  i = 0;
@@ -348,7 +348,7 @@ int receivePacket(int fd, unsigned char * frame) {
 }
 
 
-int stripAndValidate(unsigned char * dst, unsigned char * src, int length, char controlByte) {
+int stripAndValidate(unsigned char *dst, unsigned char *src, int length, char controlByte) {
   const int D1_INDEX = BCC1_INDEX + 1;
   const int END_FLAG_INDEX = length - 1;
   const int BCC2_INDEX = length - 2;
