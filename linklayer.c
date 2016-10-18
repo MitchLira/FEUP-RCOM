@@ -18,20 +18,31 @@
 #define C_UA   0x07
 #define C_RR_SUFFIX   0x05
 #define C_REJ_SUFFIX  0x01
+#define S             0x40
+#define R             0x80
 #define ESCAPE        0x7D
 #define STUFF_BYTE    0x20
 
 
 #define CONNECT_NR_TRIES  3
 #define UA_WAIT_TIME      3
-#define BAUDRATE B38400
-#define FRAME_SIZE 47
+#define BAUDRATE          B38400
+
+#define FRAME_DELIMITERS_SIZE       6
+#define SU_FRAME_SIZE               5
+#define INPUT_MAX_SIZE              40
+#define FRAME_SIZE                  INPUT_MAX_SIZE + FRAME_DELIMITERS_SIZE
+#define START_FLAG_INDEX            0
+#define A_INDEX                     1
+#define C_INDEX                     2
+#define BCC1_INDEX                  3
 
 
 /* Global/Const variables */
 const unsigned char SET[] = {FLAG, A, C_SET, A^C_SET, FLAG};
 const unsigned char UA[] = {FLAG, A, C_UA, A^C_UA, FLAG};
-int filedes, numberTries = 0;
+
+int fd, numberTries = 0;
 struct termios oldtio,newtio;
 
 
@@ -39,8 +50,10 @@ struct termios oldtio,newtio;
 void updateState(ConnectionState* state, unsigned char byte, int status);
 int needsStuffing(char byte);
 void stuff(char* frame, int index, char byte);
-int buildPacket(char* dst, char* src, int length);
+int buildPacket(char* dst, char* src, int length, char controlByte);
 int receivePacket(int fd, char* frame);
+int stripAndValidate(char* dst, char* src, int length, char controlByte);
+char* receiveSU();
 void reconnect();
 
 
@@ -55,10 +68,10 @@ int llopen(const char* path, int oflag, int status) {
     because we don't want to get killed if linenoise sends CTRL-C.
   */
 
-    filedes = open(path, oflag);
-    if (filedes <0) {perror(path); exit(-1); }
+    fd = open(path, oflag);
+    if (fd <0) {perror(path); exit(-1); }
 
-    if ( tcgetattr(filedes,&oldtio) == -1) { /* save current port settings */
+    if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
       perror("tcgetattr");
       exit(-1);
     }
@@ -76,9 +89,9 @@ int llopen(const char* path, int oflag, int status) {
 
 
 
-    tcflush(filedes, TCIOFLUSH);
+    tcflush(fd, TCIOFLUSH);
 
-    if ( tcsetattr(filedes,TCSANOW,&newtio) == -1) {
+    if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
       perror("tcsetattr");
       exit(-1);
     }
@@ -90,11 +103,11 @@ int llopen(const char* path, int oflag, int status) {
   if (status == TRANSMITTER) {
     (void) signal(SIGALRM, reconnect);   // Install routine to re-send SET if receiver doesn't respond
 
-    write(filedes, SET, sizeof(SET));  // Send SET to receiver
+    write(fd, SET, sizeof(SET));  // Send SET to receiver
     alarm(UA_WAIT_TIME);
 
     for (i = 0; i < sizeof(UA); i++) {
-      read(filedes, &receivedByte, 1);
+      read(fd, &receivedByte, 1);
       updateState(&state, receivedByte, status);
     }
 
@@ -108,7 +121,7 @@ int llopen(const char* path, int oflag, int status) {
   else if (status == RECEIVER) {
 
     for (i = 0; i < sizeof(SET); i++) {
-      read(filedes, &receivedByte, 1);
+      read(fd, &receivedByte, 1);
       updateState(&state, receivedByte, status);
     }
 
@@ -116,21 +129,30 @@ int llopen(const char* path, int oflag, int status) {
       exit(-1);
     }
 
-    write(filedes, UA, sizeof(UA));
+    write(fd, UA, sizeof(UA));
   }
 
 
-  return filedes;
+  return fd;
 }
 
 
 
 int llwrite(int fd, char* buffer, int length) {
-  unsigned char frame[FRAME_SIZE];
-  int size;
+  static unsigned char C = 0x00;
+  char frame[FRAME_SIZE];
+  char SU[SU_FRAME_SIZE];
+  int size, i;
 
-  size = buildPacket(frame, buffer, length);
-  write(filedes, frame, size);
+  size = buildPacket(frame, buffer, length, C);
+  write(fd, frame, size);
+
+  for (i = 0; i < SU_FRAME_SIZE; i++) {
+    read(fd, SU + i, 1);
+    printf("%02X\n", SU[i]);
+  }
+
+  C ^= S;
 
   return size;
 }
@@ -138,14 +160,37 @@ int llwrite(int fd, char* buffer, int length) {
 
 
 int llread(int fd, char* buffer) {
-  int res, i, size;
-  unsigned char frame[FRAME_SIZE];
+  static unsigned char transmitterControl = 0x00;
+  static unsigned char receiverControl = R;
+  int i, size, stuffedSize, frameSize;
+  char frame[FRAME_SIZE];
+  unsigned char SU[SU_FRAME_SIZE];
 
-  size = receivePacket(fd, frame);
+  stuffedSize = receivePacket(fd, frame);
+  frameSize = destuff(frame, frame, stuffedSize);
 
-  for (i = 0; i < size; i++) {
-    printf("%02X\n", frame[i]);
+  if (stripAndValidate(buffer, frame, frameSize, transmitterControl) == 0) {
+    receiverControl ^= C_RR_SUFFIX;
+    transmitterControl ^= S;
+    receiverControl ^= R;
   }
+  else {
+    receiverControl ^= C_REJ_SUFFIX;
+  }
+
+  SU[START_FLAG_INDEX] = FLAG;
+  SU[A_INDEX] = A;
+  SU[C_INDEX] = receiverControl;
+  SU[BCC1_INDEX] = SU[A_INDEX] ^ SU[C_INDEX];
+  SU[SU_FRAME_SIZE-1] = FLAG;
+
+  for (i = 0; i < frameSize - FRAME_DELIMITERS_SIZE; i++) {
+    printf("%02X\n", buffer[i]);
+  }
+
+  write(fd, SU, sizeof(SU));
+
+  return frameSize - FRAME_DELIMITERS_SIZE;
 }
 
 
@@ -210,18 +255,40 @@ void stuff(char* frame, int index, char byte) {
   frame[index + 1] = byte ^ STUFF_BYTE;
 }
 
-int buildPacket(char* dst, char* src, int length) {
-  static unsigned char C = 0x00;
+int destuff(char* dst, char* src, int length) {
+  int i, size;
+  int foundEscape;
+
+  foundEscape = 0;
+  size = 0;
+  for (i = 0; i < length; i++) {
+    if (src[i] == ESCAPE) {
+      foundEscape = 1;
+      continue;
+    }
+
+    if (foundEscape) {
+      dst[size++] = src[i] ^ STUFF_BYTE;
+      foundEscape = 0;
+    }
+    else
+      dst[size++] = src[i];
+  }
+
+  return size;
+}
+
+int buildPacket(char* dst, char* src, int length, char controlByte) {
   int i, n;
   unsigned char BCC1;
   unsigned char BCC2 = 0x00;
 
   n = 0;
-  BCC1 = A^C;
+  BCC1 = A ^ controlByte;
 
   dst[n++] = FLAG;
   dst[n++] = A;
-  dst[n++] = C;
+  dst[n++] = controlByte;
 
   if (needsStuffing(BCC1)) {
     stuff(dst, n, BCC1);
@@ -256,7 +323,6 @@ int buildPacket(char* dst, char* src, int length) {
 
   dst[n++] = FLAG;
 
-  C ^= 0x40;
   return n;
 }
 
@@ -276,18 +342,48 @@ int receivePacket(int fd, char* frame) {
 }
 
 
+int stripAndValidate(char* dst, char* src, int length, char controlByte) {
+  const int D1_INDEX = BCC1_INDEX + 1;
+  const int END_FLAG_INDEX = length - 1;
+  const int BCC2_INDEX = length - 2;
+  unsigned char validateBCC2 = 0x00;
+  int i;
+
+  if (! (
+    src[START_FLAG_INDEX] == FLAG &&
+    src[A_INDEX] == A &&
+    src[C_INDEX] == controlByte &&
+    src[BCC1_INDEX] == src[A_INDEX] ^ src[C_INDEX] &&
+    src[END_FLAG_INDEX] == FLAG )) {
+
+      return -1;
+    }
+
+
+  for (i = 0; i < BCC2_INDEX; i++) {
+    dst[i] = src[i + D1_INDEX];
+    validateBCC2 ^= dst[i];
+  }
+
+  if (validateBCC2 != src[BCC2_INDEX])
+    return -1;
+
+  return 0;
+}
+
+
 void reconnect() {
 
   if (numberTries < CONNECT_NR_TRIES) {
     printf("No answer was given by the receiver. Retrying...\n");
-    write(filedes, SET, sizeof(SET));
+    write(fd, SET, sizeof(SET));
     numberTries++;
     alarm(UA_WAIT_TIME);
   }
   else {
     printf("Receiver is not replying. Shutting down...\n");
     alarm(0);
-    close(filedes);
+    close(fd);
     exit(-1);
   }
 }
