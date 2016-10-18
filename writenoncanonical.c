@@ -28,7 +28,7 @@ int fd;
 int main(int argc, char** argv)
 {
     int i, sum = 0, speed = 0, n;
-    char buf[255];
+    char buf[LL_INPUT_MAX_SIZE];
     char resp[255];
     struct Application app;
 
@@ -43,7 +43,7 @@ int main(int argc, char** argv)
     app = appopen("res/pinguim.gif");
 
     printf("%lu - %s\n", app.fileLength, app.fileName);
-    for (i = 0; i < app.fileLength; i++) {
+    for (i = 0; i < LL_INPUT_MAX_SIZE; i++) {
       printf("%02X\n", app.buffer[i]);
     }
     printf("\n\n");
@@ -51,11 +51,21 @@ int main(int argc, char** argv)
     fd = llopen(argv[1], O_RDWR | O_NOCTTY, TRANSMITTER);
 
 
-    for (i = 0; i < 10; i++) {
-      buf[i] = 'a' + i;
-    }
+    int loops = app.fileLength / LL_INPUT_MAX_SIZE;
+    int bytesRemaining = app.fileLength;
+    int s = 0;
+    for (i = 0; i < 1; i++) {
+      if (bytesRemaining < LL_INPUT_MAX_SIZE)
+        s = bytesRemaining;
+      else {
+        s = LL_INPUT_MAX_SIZE;
+        bytesRemaining -= LL_INPUT_MAX_SIZE;
+      }
 
-    llwrite(fd, buf, 10);
+      memcpy(buf, &app.buffer[i * LL_INPUT_MAX_SIZE], s);
+
+      llwrite(fd, buf, s);
+    }
 
     receiveMessage(fd, resp);
     printf("Receiver's response: %s\n", resp);
