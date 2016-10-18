@@ -353,7 +353,7 @@ int stripAndValidate(char* dst, char* src, int length, char controlByte) {
     src[START_FLAG_INDEX] == FLAG &&
     src[A_INDEX] == A &&
     src[C_INDEX] == controlByte &&
-    src[BCC1_INDEX] == src[A_INDEX] ^ src[C_INDEX] &&
+    src[BCC1_INDEX] == (src[A_INDEX] ^ src[C_INDEX]) &&
     src[END_FLAG_INDEX] == FLAG )) {
 
       return -1;
