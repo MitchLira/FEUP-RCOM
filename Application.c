@@ -32,6 +32,7 @@ struct Application appopen(const char *fileName) {
 }
 
 
+
 void appclose(struct Application app) {
   printf("Fecha\n");
   free(app.buffer);
