@@ -170,7 +170,7 @@ int llread(int fd, char* buffer) {
   frameSize = destuff(frame, frame, stuffedSize);
 
   if (stripAndValidate(buffer, frame, frameSize, transmitterControl) == 0) {
-    receiverControl ^= C_RR_SUFFIX;
+    receiverControl ^= C_RR_SUFFIX;     // TODO falta remover sufixo
     transmitterControl ^= S;
     receiverControl ^= R;
   }
