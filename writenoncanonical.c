@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include "DataLink.h"
+#include "Application.h"
 
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -29,6 +30,7 @@ int main(int argc, char** argv)
     int i, sum = 0, speed = 0, n;
     char buf[255];
     char resp[255];
+    struct Application app;
 
     if ( (argc < 2) ||
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -37,6 +39,14 @@ int main(int argc, char** argv)
       exit(1);
     }
 
+
+    app = appopen("res/pinguim.gif");
+
+    printf("%lu - %s\n", app.fileLength, app.fileName);
+    for (i = 0; i < app.fileLength; i++) {
+      printf("%02X\n", app.buffer[i]);
+    }
+    printf("\n\n");
 
     fd = llopen(argv[1], O_RDWR | O_NOCTTY, TRANSMITTER);
 
@@ -52,6 +62,7 @@ int main(int argc, char** argv)
 
     sleep(2);
     llclose(fd);
+    appclose(app);
     return 0;
 }
 

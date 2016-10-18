@@ -30,7 +30,7 @@
 
 #define FRAME_DELIMITERS_SIZE       6
 #define SU_FRAME_SIZE               5
-#define FRAME_SIZE                  INPUT_MAX_SIZE + FRAME_DELIMITERS_SIZE
+#define FRAME_SIZE                  LL_INPUT_MAX_SIZE * 2
 #define START_FLAG_INDEX            0
 #define A_INDEX                     1
 #define C_INDEX                     2
@@ -148,7 +148,6 @@ int llwrite(int fd, char* buffer, int length) {
 
   for (i = 0; i < SU_FRAME_SIZE; i++) {
     read(fd, SU + i, 1);
-    printf("%02X\n", SU[i]);
   }
 
   C ^= S;
@@ -310,8 +309,6 @@ int buildPacket(char* dst, char* src, int length, char controlByte) {
 
   for (i = 0; i < length; i++, n++) {
     BCC2 ^= src[i];
-
-    printf("%02X\n", src[i]);
 
     if (needsStuffing(src[i])) {
       stuff(dst, n, src[i]);
