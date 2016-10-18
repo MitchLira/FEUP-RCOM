@@ -8,7 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include "linklayer.h"
+#include "DataLink.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -24,7 +24,6 @@ volatile int STOP=FALSE;
 int main(int argc, char** argv)
 {
     int fd, length;
-    struct termios oldtio;
     char buf[255];
 
 
@@ -35,27 +34,11 @@ int main(int argc, char** argv)
       exit(1);
     }
 
-
     fd = llopen(argv[1], O_RDWR | O_NOCTTY, RECEIVER);
-
-    if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
-      perror("tcgetattr");
-      exit(-1);
-    }
 
     llread(fd, buf);
     write(fd, "AA", 3);
 
-    //length = receiveMessage(fd, buf);
-    //printf("Sender's message: %s\n", buf);
-
-  //  write(fd, buf, length);
-
-    
-
-
-    tcsetattr(fd,TCSANOW,&oldtio);
-    close(fd);
     return 0;
 }
 

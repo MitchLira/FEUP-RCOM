@@ -9,7 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
-#include "linklayer.h"
+#include "DataLink.h"
 
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -29,7 +29,6 @@ int main(int argc, char** argv)
     int i, sum = 0, speed = 0, n;
     char buf[255];
     char resp[255];
-    struct termios oldtio;
 
     if ( (argc < 2) ||
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -41,37 +40,18 @@ int main(int argc, char** argv)
 
     fd = llopen(argv[1], O_RDWR | O_NOCTTY, TRANSMITTER);
 
-    if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
-      perror("tcgetattr");
-      exit(-1);
+
+    for (i = 0; i < 10; i++) {
+      buf[i] = 'a' + i;
     }
 
-    /*
-    printf("Write your message: ");
-    if (fgets(buf, sizeof(buf), stdin) == NULL) {
-      fprintf(stderr, "Error reading message!\n");
-      exit(-1);
-    }
-
-    n = strcspn(buf, "\n");
-    buf[n] = '\0';
-    */
-    buf[0] = 0x7E;
-    buf[1] = 0x7D;
-
-    llwrite(fd, buf, 2);
+    llwrite(fd, buf, 10);
 
     receiveMessage(fd, resp);
     printf("Receiver's response: %s\n", resp);
 
     sleep(2);
-
-    if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
-      perror("tcsetattr");
-      exit(-1);
-    }
-
-    close(fd);
+    llclose(fd);
     return 0;
 }
 
