@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
-#include "linklayer.h"
+#include "DataLink.h"
 
 
 /* Definitions */

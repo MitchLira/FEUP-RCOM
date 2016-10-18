@@ -3,11 +3,11 @@ CFLAGS = -Wall -O3
 
 all: writenoncanonical noncanonical
 
-writenoncanonical: linklayer.h writenoncanonical.c
-	$(CC) $(CFLAGS) writenoncanonical.c linklayer.c -o writenoncanonical
+writenoncanonical: DataLink.h writenoncanonical.c
+	$(CC) $(CFLAGS) writenoncanonical.c DataLink.c -o writenoncanonical
 	
-noncanonical: linklayer.h noncanonical.c
-	$(CC) $(CFLAGS) noncanonical.c linklayer.c -o noncanonical
+noncanonical: DataLink.h noncanonical.c
+	$(CC) $(CFLAGS) noncanonical.c DataLink.c -o noncanonical
 	
 clean:
 	rm -f writenoncanonical

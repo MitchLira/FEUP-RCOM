@@ -8,7 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include "linklayer.h"
+#include "DataLink.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */

@@ -9,7 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
-#include "linklayer.h"
+#include "DataLink.h"
 
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -41,15 +41,17 @@ int main(int argc, char** argv)
     fd = llopen(argv[1], O_RDWR | O_NOCTTY, TRANSMITTER);
 
 
-    buf[0] = 0x7E;
-    buf[1] = 0x7D;
+    for (i = 0; i < 10; i++) {
+      buf[i] = 'a' + i;
+    }
 
-    llwrite(fd, buf, 2);
+    llwrite(fd, buf, 10);
 
     receiveMessage(fd, resp);
     printf("Receiver's response: %s\n", resp);
 
     sleep(2);
+    llclose(fd);
     return 0;
 }
 
