@@ -30,7 +30,6 @@
 
 #define FRAME_DELIMITERS_SIZE       6
 #define SU_FRAME_SIZE               5
-#define INPUT_MAX_SIZE              40
 #define FRAME_SIZE                  INPUT_MAX_SIZE + FRAME_DELIMITERS_SIZE
 #define START_FLAG_INDEX            0
 #define A_INDEX                     1
@@ -191,6 +190,16 @@ int llread(int fd, char* buffer) {
   write(fd, SU, sizeof(SU));
 
   return frameSize - FRAME_DELIMITERS_SIZE;
+}
+
+
+int llclose(int fd) {
+  if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
+    perror("tcsetattr");
+    exit(-1);
+  }
+
+  close(fd);
 }
 
 
