@@ -23,7 +23,7 @@ volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
-    int fd, length;
+    int fd;
     char buf[255];
 
 

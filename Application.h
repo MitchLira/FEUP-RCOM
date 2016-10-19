@@ -2,14 +2,16 @@
 #define APPLICATION_H
 
 struct Application {
-  int valid;
-  unsigned long fileLength;
-  unsigned char* fileName;
-  unsigned char* buffer;
+  int filedes;
+  char *fileName;
+  char *buffer;
+  int fileNameLength;
+  unsigned long fileSize;
 };
 
 
-struct Application appopen(const char *fileName);
+int appopen(struct Application *app, const char *fileName, int length, const char *path, int oflag, int status);
+int appwrite(struct Application app);
 void appclose(struct Application app);
 
 #endif
