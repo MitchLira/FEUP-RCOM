@@ -182,10 +182,7 @@ int llread(int fd, char *buffer) {
   SU[C_INDEX] = receiverControl;
   SU[BCC1_INDEX] = SU[A_INDEX] ^ SU[C_INDEX];
   SU[SU_FRAME_SIZE-1] = FLAG;
-
-  for (i = 0; i < frameSize - FRAME_DELIMITERS_SIZE; i++) {
-    printf("%02X\n", buffer[i]);
-  }
+  
 
   write(fd, SU, sizeof(SU));
 

@@ -77,7 +77,9 @@ int appwrite(struct Application app) {
 
   nrPackets = ceil((float) app.fileSize / LL_INPUT_MAX_SIZE);
   bytesRemaining = app.fileSize;
-  for (i = 0; i < 1; i++) {
+
+
+  for (i = 0; i < nrPackets; i++) {
     int size;
 
     if (bytesRemaining < LL_INPUT_MAX_SIZE)
@@ -85,15 +87,13 @@ int appwrite(struct Application app) {
     else
       size = LL_INPUT_MAX_SIZE;
 
-    bytesRemaining -= size;
     llwrite(app.filedes, &app.buffer[i * LL_INPUT_MAX_SIZE], size);
+    bytesRemaining -= size;
 
-    /*
     int j;
-    for (j = 0; j < size/2; j++) {
-      printf("%02X - ", (unsigned char) app.buffer[j]);
-    }*/
-
+    for (j = 0; j < size; j++) {
+      printf("%02X - ", (unsigned char) app.buffer[i*LL_INPUT_MAX_SIZE + j]);
+    }
     printf("\n");
   }
 
