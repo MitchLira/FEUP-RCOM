@@ -3,7 +3,7 @@
 
 #define TRANSMITTER        0
 #define RECEIVER           1
-#define LL_INPUT_MAX_SIZE  40
+#define LL_INPUT_MAX_SIZE  256
 
 typedef enum { START_RCV, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP_RCV } ConnectionState;
 

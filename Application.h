@@ -6,7 +6,7 @@ struct Application {
   char *fileName;
   char *buffer;
   int fileNameLength;
-  unsigned long fileSize;
+  unsigned int fileSize;
 };
 
 

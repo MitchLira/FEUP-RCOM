@@ -44,18 +44,7 @@ int main(int argc, char** argv)
 
     appwrite(app);
 
-    /*
-    for (i = 0; i < 1; i++) {
-      memcpy(buf, &app.buffer[i * LL_INPUT_MAX_SIZE], LL_INPUT_MAX_SIZE);
-      llwrite(fd, buf, LL_INPUT_MAX_SIZE);
-    }
-    */
-
-    //receiveMessage(fd, resp);
-    //printf("Receiver's response: %s\n", resp);
-
     sleep(2);
-    //llclose(fd);
     appclose(app);
     return 0;
 }

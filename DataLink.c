@@ -194,7 +194,7 @@ int llread(int fd, char *buffer) {
 
 
 int llclose(int fd) {
-  if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
+  if (tcsetattr(fd,TCSANOW,&oldtio) == -1) {
     perror("tcsetattr");
     exit(-1);
   }
@@ -339,7 +339,7 @@ int receivePacket(int fd, char *frame) {
   int i, flagCount;
 
   flagCount = 0;  i = 0;
-  for (i = 0; i < FRAME_SIZE && flagCount < 2; i++) {
+  for (i = 0; flagCount < 2; i++) {
     read(fd, frame + i, 1);
 
     if (frame[i] == FLAG)

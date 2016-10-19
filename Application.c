@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "Application.h"
 #include "DataLink.h"
 
@@ -65,16 +66,39 @@ int appopen(struct Application *app, const char *fileName, int length, const cha
 
 int appwrite(struct Application app) {
   struct Packet packet;
-  int r, i;
+  int r, i, nrPackets, bytesRemaining;
 
-  r = createStartPacket(app, &packet);
-  if (r != 0) {
+  if (createStartPacket(app, &packet) != 0) {
     exit(-1);
   }
 
   llwrite(app.filedes, packet.frame, packet.size);
-
   free(packet.frame);
+
+  nrPackets = ceil((float) app.fileSize / LL_INPUT_MAX_SIZE);
+  bytesRemaining = app.fileSize;
+  for (i = 0; i < 1; i++) {
+    int size;
+
+    if (bytesRemaining < LL_INPUT_MAX_SIZE)
+      size = bytesRemaining;
+    else
+      size = LL_INPUT_MAX_SIZE;
+
+    bytesRemaining -= size;
+    llwrite(app.filedes, &app.buffer[i * LL_INPUT_MAX_SIZE], size);
+
+    /*
+    int j;
+    for (j = 0; j < size/2; j++) {
+      printf("%02X - ", (unsigned char) app.buffer[j]);
+    }*/
+
+    printf("\n");
+  }
+
+  printf("%d\n", app.fileSize);
+
   return 0;
 }
 
@@ -97,13 +121,14 @@ int createStartPacket(struct Application app, struct Packet *packet) {
     return -1;
   }
 
+
   packet->frame[0] = START;
   packet->frame[1] = T_FILE_SIZE;
   packet->frame[2] = 4;
-  packet->frame[3] = app.fileSize % 0x100;
-  packet->frame[4] = (app.fileSize % 0x1000) % 0x100;
-  packet->frame[5] = (app.fileSize % 0x10000) % 0x100;
-  packet->frame[6] = app.fileSize % 0x1000000;
+  packet->frame[3] = app.fileSize & 0xFF;
+  packet->frame[4] = (app.fileSize >> 8) & 0xFF;
+  packet->frame[5] = (app.fileSize >> 16) & 0xFF;
+  packet->frame[6] = (app.fileSize >> 24) & 0xFF;
   packet->frame[7] = T_FILE_NAME;
   packet->frame[8] = app.fileNameLength;
   memcpy(&packet->frame[9], app.fileName, app.fileNameLength);
