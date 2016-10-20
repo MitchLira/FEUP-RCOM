@@ -354,7 +354,7 @@ int stripAndValidate(char *dst, char *src, int length, char controlByte) {
   unsigned char validateBCC2 = 0x00;
   int i;
 
-  if (! (
+  /* if (! (
     src[START_FLAG_INDEX] == FLAG &&
     src[A_INDEX] == A &&
     src[C_INDEX] == controlByte &&
@@ -362,7 +362,7 @@ int stripAndValidate(char *dst, char *src, int length, char controlByte) {
     src[END_FLAG_INDEX] == FLAG )) {
 
       return -1;
-    }
+      }*/
 
 
   for (i = 0; i < BCC2_INDEX; i++) {

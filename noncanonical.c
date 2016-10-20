@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include "DataLink.h"
+#include <math.h>
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -24,8 +25,8 @@ volatile int STOP=FALSE;
 int main(int argc, char** argv)
 {
     int fd;
-    char buf[255];
-
+    char buf[LL_INPUT_MAX_SIZE];
+    unsigned int fileLength;
 
     if ( (argc < 2) ||
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -36,9 +37,37 @@ int main(int argc, char** argv)
 
     fd = llopen(argv[1], O_RDWR | O_NOCTTY, RECEIVER);
 
-    llread(fd, buf);
-    write(fd, "AA", 3);
+    int i;
+    int s = llread(fd, buf);
 
+    printf("\n LELELELELELELE \n");
+
+    //for (i  = 0; i < s; i++) {
+      //printf("%c\n", (unsigned char) buf[i]);
+    //}
+
+    memcpy(&fileLength, &buf[3], sizeof(fileLength));
+
+    int nrPackets = ceil((float) fileLength / LL_INPUT_MAX_SIZE);
+
+
+    for(i=0; i<nrPackets; i++){
+      int length = llread(fd,buf);
+      /*
+      int j;
+      for(j=0; j<length; j++)
+       printf("%02X - ", (unsigned char)buf[j]);
+      */
+      printf("\n");
+
+    }
+    s = llread(fd, buf);
+
+    printf("\n LELELELELELELE \n");
+
+    for (i  = 0; i < s; i++) {
+      printf("%02X\n", (unsigned char) buf[i]);
+    }
     return 0;
 }
 
