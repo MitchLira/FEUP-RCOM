@@ -24,8 +24,10 @@ volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
+    FILE *file;
     int fd;
     char buf[LL_INPUT_MAX_SIZE];
+    char name[256];
     unsigned int fileLength;
 
     if ( (argc < 2) ||
@@ -40,34 +42,34 @@ int main(int argc, char** argv)
     int i;
     int s = llread(fd, buf);
 
-    printf("\n LELELELELELELE \n");
+    memcpy(name, &buf[9], buf[8]);
+    name[buf[8]] = '\0';
 
-    //for (i  = 0; i < s; i++) {
-      //printf("%c\n", (unsigned char) buf[i]);
-    //}
+    printf("%s\n", name);
 
+    file = fopen(name, "w");
+    if (file == NULL)
+      printf("\n LELELELELELELE \n");
+
+    /*
+    for (i  = 0; i < s; i++) {
+      printf("%c\n", (unsigned char) buf[i]);
+    }
+    */
     memcpy(&fileLength, &buf[3], sizeof(fileLength));
 
     int nrPackets = ceil((float) fileLength / LL_INPUT_MAX_SIZE);
 
 
-    for(i=0; i<nrPackets; i++){
+    for(i=0; i < nrPackets; i++) {
       int length = llread(fd,buf);
-      /*
       int j;
-      for(j=0; j<length; j++)
-       printf("%02X - ", (unsigned char)buf[j]);
-      */
-      printf("\n");
-
+      for (j = 0; j < length; j++) {
+        fprintf(file, "%c", buf[j]);
+      }
     }
+
     s = llread(fd, buf);
-
-    printf("\n LELELELELELELE \n");
-
-    for (i  = 0; i < s; i++) {
-      printf("%02X\n", (unsigned char) buf[i]);
-    }
     return 0;
 }
 
