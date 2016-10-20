@@ -20,7 +20,7 @@ struct Packet {
 
 
 /* Function headers */
-int createStartPacket(struct Application app, struct Packet *packet);
+int createControlPacket(struct Application app, struct Packet *packet, char C_FLAG);
 
 
 
@@ -68,7 +68,7 @@ int appwrite(struct Application app) {
   struct Packet packet;
   int r, i, nrPackets, bytesRemaining;
 
-  if (createStartPacket(app, &packet) != 0) {
+  if (createControlPacket(app, &packet, START) != 0) {
     exit(-1);
   }
 
@@ -85,20 +85,31 @@ int appwrite(struct Application app) {
     if (bytesRemaining < LL_INPUT_MAX_SIZE)
       size = bytesRemaining;
     else
-      size = LL_INPUT_MAX_SIZE;
+      size = LL_INPUT_MAX_SIZE;\
 
     llwrite(app.filedes, &app.buffer[i * LL_INPUT_MAX_SIZE], size);
     bytesRemaining -= size;
-
+    /*
     int j;
     for (j = 0; j < size; j++) {
       printf("%02X - ", (unsigned char) app.buffer[i*LL_INPUT_MAX_SIZE + j]);
     }
     printf("\n");
+    */
   }
 
-  printf("%d\n", app.fileSize);
+  if (createControlPacket(app, &packet, END) != 0) {
+    exit(-1);
+  }
 
+  for (i = 0; i < packet.size; i++) {
+    printf("%02X\n", (unsigned char) packet.frame[i]);
+  }
+
+  llwrite(app.filedes, packet.frame, packet.size);
+  free(packet.frame);
+
+  printf("%d\n", app.fileSize);
   return 0;
 }
 
@@ -113,7 +124,7 @@ void appclose(struct Application app) {
 
 
 
-int createStartPacket(struct Application app, struct Packet *packet) {
+int createControlPacket(struct Application app, struct Packet *packet, char C_FLAG) {
 
   packet->size = 9 + app.fileNameLength;
   packet->frame = (char *) malloc(packet->size);
@@ -121,8 +132,7 @@ int createStartPacket(struct Application app, struct Packet *packet) {
     return -1;
   }
 
-
-  packet->frame[0] = START;
+  packet->frame[0] = C_FLAG;
   packet->frame[1] = T_FILE_SIZE;
   packet->frame[2] = 4;
   packet->frame[3] = app.fileSize & 0xFF;
