@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdarg.h>
 #include "Application.h"
 #include "DataLink.h"
 
@@ -21,46 +22,32 @@ struct Packet {
 
 /* Function headers */
 int createControlPacket(struct Application app, struct Packet *packet, char C_FLAG);
+int appopenWriter(struct Application *app, const char *path, int oflag, int status,
+                      const char *fileName, unsigned int fileNameLength);
 
 
 
-int appopen(struct Application *app, const char *fileName, int length, const char *path, int oflag, int status) {
-  FILE *file;
+int appopen(struct Application *app, const char *path, int oflag, int status, ...
+            /*const char *fileName, unsigned int fileNameLength */) {
+  va_list ap;
+  int r;
+  unsigned int fileNameLength;
+  const char *fileName;
 
-  app->fileNameLength = length;
-  app->fileName = (char *) malloc(sizeof(app->fileNameLength));
-  if (app->fileName == NULL) {
-    exit(-1);
+  va_start(ap, status);
+  r = 0;
+
+  if (status == TRANSMITTER) {
+    fileName = va_arg(ap, char *);
+    fileNameLength = va_arg(ap, unsigned int);
+    r = appopenWriter(app, path, oflag, status, fileName, fileNameLength);
+  }
+  else {
+
   }
 
-  strcpy(app->fileName, fileName);
-
-
-  file = fopen(fileName, "rb");
-  if (file == NULL) {
-    exit(-1);
-  }
-
-  fseek(file, 0, SEEK_END);
-  app->fileSize = ftell(file);
-  fseek(file, 0, SEEK_SET);
-
-
-  app->buffer = (char *) malloc(app->fileSize);
-  if (app->buffer == NULL) {
-    exit(-1);
-  }
-
-  fread(app->buffer, app->fileSize, sizeof(char), file);
-  fclose(file);
-
-
-  app->filedes = llopen(path, oflag, status);
-  if (app->filedes == -1) {
-    exit(-1);
-  }
-
-  return 0;
+  va_end(ap);
+  return r;
 }
 
 
@@ -134,14 +121,53 @@ int createControlPacket(struct Application app, struct Packet *packet, char C_FL
 
   packet->frame[0] = C_FLAG;
   packet->frame[1] = T_FILE_SIZE;
-  packet->frame[2] = 4;
-  packet->frame[3] = app.fileSize & 0xFF;
-  packet->frame[4] = (app.fileSize >> 8) & 0xFF;
-  packet->frame[5] = (app.fileSize >> 16) & 0xFF;
-  packet->frame[6] = (app.fileSize >> 24) & 0xFF;
+  packet->frame[2] = sizeof(app.fileSize);
+  memcpy(&packet->frame[3], &app.fileSize, sizeof(app.fileSize));
+  
   packet->frame[7] = T_FILE_NAME;
   packet->frame[8] = app.fileNameLength;
   memcpy(&packet->frame[9], app.fileName, app.fileNameLength);
+
+  return 0;
+}
+
+
+
+
+int appopenWriter(struct Application *app, const char *path, int oflag, int status,
+                      const char *fileName, unsigned int fileNameLength) {
+  FILE *file;
+
+  app->fileNameLength = fileNameLength;
+  app->fileName = (char *) malloc(sizeof(app->fileNameLength));
+  if (app->fileName == NULL) {
+    exit(-1);
+  }
+
+  strcpy(app->fileName, fileName);
+
+  file = fopen(fileName, "rb");
+  if (file == NULL) {
+    exit(-1);
+  }
+
+  fseek(file, 0, SEEK_END);
+  app->fileSize = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  app->buffer = (char *) malloc(app->fileSize);
+  if (app->buffer == NULL) {
+    exit(-1);
+  }
+
+  fread(app->buffer, app->fileSize, sizeof(char), file);
+  fclose(file);
+
+
+  app->filedes = llopen(path, oflag, status);
+  if (app->filedes == -1) {
+    exit(-1);
+  }
 
   return 0;
 }

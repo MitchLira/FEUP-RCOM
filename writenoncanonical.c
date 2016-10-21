@@ -39,8 +39,7 @@ int main(int argc, char** argv)
     }
 
 
-    r = appopen(&app, "res/pinguim.gif", strlen("res/pinguim.gif"),
-      argv[1], O_RDWR | O_NOCTTY, TRANSMITTER);
+    r = appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER, "res/pinguim.gif", strlen("res/pinguim.gif"));
 
     appwrite(app);
 

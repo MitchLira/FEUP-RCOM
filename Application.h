@@ -10,7 +10,8 @@ struct Application {
 };
 
 
-int appopen(struct Application *app, const char *fileName, int length, const char *path, int oflag, int status);
+int appopen(struct Application *app, const char *path, int oflag, int status, ...
+              /*const char *fileName, unsigned int fileNameLength */);
 int appwrite(struct Application app);
 void appclose(struct Application app);
 
