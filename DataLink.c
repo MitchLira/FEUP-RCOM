@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include "DataLink.h"
+#include "Alarm.h"
 
 
 /* Definitions */
@@ -54,14 +55,15 @@ int buildPacket(char *dst, char *src, int length, char controlByte);
 int receivePacket(int fd, char *frame);
 int stripAndValidate(char *dst, char *src, int length, char controlByte);
 char *receiveSU();
+int receiveCommand(int status);
 void reconnect();
 
 
 
 int llopen(const char *path, int oflag, int status) {
-  ConnectionState state;
+  int i, bytesRead, r;
   unsigned char receivedByte;
-  int i;
+  ConnectionState state;
 
   /*
     Open serial port device for reading and writing and not as controlling tty
@@ -84,8 +86,16 @@ int llopen(const char *path, int oflag, int status) {
     /* set input mode (non-canonical, no echo,...) */
     newtio.c_lflag = 0;
 
-    newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-    newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
+    if (status == TRANSMITTER) {
+      /* If MIN = 0 and TIME > 0, the read will be satisfied if a single
+      character is read, or TIME is exceeded (t = TIME * 0.1 s) */
+      newtio.c_cc[VTIME]    = 0;
+      newtio.c_cc[VMIN]     = 0;
+    }
+    else if (status == RECEIVER) {
+      newtio.c_cc[VTIME]    = 0;
+      newtio.c_cc[VMIN]     = 1;
+    }
 
 
 
@@ -96,26 +106,19 @@ int llopen(const char *path, int oflag, int status) {
       exit(-1);
     }
 
-    printf("New termios structure set\n\n");
+  configAlarm(CONNECT_NR_TRIES, UA_WAIT_TIME);
 
 
   state = START_RCV;
   if (status == TRANSMITTER) {
-    (void) signal(SIGALRM, reconnect);   // Install routine to re-send SET if receiver doesn't respond
-
     write(fd, SET, sizeof(SET));  // Send SET to receiver
-    alarm(UA_WAIT_TIME);
+    setAlarm(reconnect, (char *) SET, sizeof(SET));
 
-    for (i = 0; i < sizeof(UA); i++) {
-      read(fd, &receivedByte, 1);
-      updateState(&state, receivedByte, status);
+    if (receiveCommand(status) != 0) {
+      fprintf(stderr, "Can't connect to the receiver. Please try again later.\n");
     }
 
-    if (state != STOP_RCV) {
-      exit(-1);
-    }
-
-    alarm(0);
+    disableAlarm();
 
   }
   else if (status == RECEIVER) {
@@ -182,7 +185,7 @@ int llread(int fd, char *buffer) {
   SU[C_INDEX] = receiverControl;
   SU[BCC1_INDEX] = SU[A_INDEX] ^ SU[C_INDEX];
   SU[SU_FRAME_SIZE-1] = FLAG;
-  
+
 
   write(fd, SU, sizeof(SU));
 
@@ -257,10 +260,12 @@ int needsStuffing(char byte) {
   return (byte == FLAG || byte == ESCAPE);
 }
 
+
 void stuff(char *frame, int index, char byte) {
   frame[index] = ESCAPE;
   frame[index + 1] = byte ^ STUFF_BYTE;
 }
+
 
 int destuff(char *dst, char *src, int length) {
   int i, size;
@@ -284,6 +289,7 @@ int destuff(char *dst, char *src, int length) {
 
   return size;
 }
+
 
 int buildPacket(char *dst, char *src, int length, char controlByte) {
   int i, n;
@@ -376,19 +382,33 @@ int stripAndValidate(char *dst, char *src, int length, char controlByte) {
   return 0;
 }
 
+int receiveCommand(int status) {
+  int bytesRead, r;
+  ConnectionState state;
+  unsigned char receivedByte;
 
-void reconnect() {
+  bytesRead = 0;
+  while (bytesRead != sizeof(UA)) {
+    r = read(fd, &receivedByte, 1);
 
-  if (numberTries < CONNECT_NR_TRIES) {
-    printf("No answer was given by the receiver. Retrying...\n");
-    write(fd, SET, sizeof(SET));
-    numberTries++;
-    alarm(UA_WAIT_TIME);
+    if (connectionTimedOut()) {
+      exit(-1);
+    }
+
+    if (r == 1) {
+      updateState(&state, receivedByte, status);
+      bytesRead++;
+    }
   }
-  else {
-    printf("Receiver is not replying. Shutting down...\n");
-    alarm(0);
-    close(fd);
+
+  if (state != STOP_RCV) {
     exit(-1);
   }
+
+  return 0;
+}
+
+
+void reconnect(char *buffer, int length) {
+  write(fd, buffer, length);
 }
