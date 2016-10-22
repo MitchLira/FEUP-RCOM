@@ -26,7 +26,6 @@ volatile int STOP=FALSE;
 int main(int argc, char** argv)
 {
     struct Application app;
-    int r;
 
     if ( (argc < 2) ||
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -35,7 +34,7 @@ int main(int argc, char** argv)
       exit(1);
     }
 
-    r = appopen(&app, argv[1], O_RDWR | O_NOCTTY, RECEIVER);
+    appopen(&app, argv[1], O_RDWR | O_NOCTTY, RECEIVER);
     appread(app);
     appclose(app);
 

@@ -18,18 +18,19 @@
 #define T_FILE_NAME 1
 
 
+/* Enums / structs */
 struct Packet {
   char *frame;
   int size;
 };
 
 
-
 /* Function headers */
 int createControlPacket(struct Application app, struct Packet *packet, char C_FLAG);
-int appopenWriter(struct Application *app, const char *path, int oflag,
-                      const char *fileName, unsigned int fileNameLength);
+int appopenWriter(struct Application *app, const char *path, int oflag, const char *fileName, unsigned int fileNameLength);
 int appopenReader(struct Application *app, const char *path, int oflag);
+void writeToFile(FILE *file, char *buf, int length);
+
 
 
 
@@ -62,7 +63,7 @@ int appopen(struct Application *app, const char *path, int oflag, int status, ..
 
 int appwrite(struct Application app) {
   struct Packet packet;
-  int r, i, nrPackets, bytesRemaining;
+  int i, nrPackets, bytesRemaining;
 
   if (createControlPacket(app, &packet, START) != 0) {
     exit(-1);
@@ -108,10 +109,10 @@ int appread(struct Application app){
   unsigned int fileLength;
   int i;
 
-  int s = llread(app.filedes, buf);
+  llread(app.filedes, buf);
 
   memcpy(name, &buf[9], buf[8]);
-  name[buf[8]] = '\0';
+  name[(int) buf[8]] = '\0';
 
   printf("%s\n", name);
 
@@ -126,14 +127,11 @@ int appread(struct Application app){
   int nrPackets = ceil((float) fileLength / LL_INPUT_MAX_SIZE);
 
   for(i = 0; i < nrPackets; i++) {
-    int length = llread(app.filedes,buf);
-    int j;
-    for (j = 0; j < length; j++) {
-      fprintf(file, "%c", buf[j]);
-    }
+    int length = llread(app.filedes, buf);
+    writeToFile(file, buf, length);
   }
 
-  s = llread(app.filedes, buf);
+  llread(app.filedes, buf);
 
   return 0;
 }
@@ -141,7 +139,6 @@ int appread(struct Application app){
 int appclose(struct Application app) {
   return llclose(app.filedes, app.status);
 }
-
 
 
 int createControlPacket(struct Application app, struct Packet *packet, char C_FLAG) {
@@ -163,8 +160,6 @@ int createControlPacket(struct Application app, struct Packet *packet, char C_FL
 
   return 0;
 }
-
-
 
 
 int appopenWriter(struct Application *app, const char *path, int oflag,
@@ -205,6 +200,7 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
   return 0;
 }
 
+
 int appopenReader(struct Application *app, const char *path, int oflag) {
   app->filedes = llopen(path, oflag, RECEIVER);
   if (app->filedes == -1) {
@@ -212,4 +208,12 @@ int appopenReader(struct Application *app, const char *path, int oflag) {
   }
 
   return 0;
+}
+
+void writeToFile(FILE *file, char *buf, int length) {
+  int i;
+
+  for (i = 0; i < length; i++) {
+    fprintf(file, "%c", buf[i]);
+  }
 }

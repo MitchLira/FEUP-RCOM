@@ -64,21 +64,17 @@ int receivePacket(int fd, char *frame);
 int stripAndValidate(char *dst, char *src, int length, char controlByte);
 char *receiveSU();
 int receiveCommand(CommandType type);
-void resend();
+void reconnect();
 
 
 
 int llopen(const char *path, int oflag, int status) {
-  int i, bytesRead, r;
-  unsigned char receivedByte;
   CommandType type;
-  CommandState state;
 
   /*
     Open serial port device for reading and writing and not as controlling tty
     because we don't want to get killed if linenoise sends CTRL-C.
   */
-
     fd = open(path, oflag);
     if (fd <0) {perror(path); return -1; }
 
@@ -117,11 +113,9 @@ int llopen(const char *path, int oflag, int status) {
 
   configAlarm(CONNECT_NR_TRIES, UA_WAIT_TIME);
 
-
-  state = START_RCV;
   if (status == TRANSMITTER) {
     write(fd, SET_PACKET, COMMAND_LENGTH);  // Send SET to receiver
-    setAlarm(resend, (char *) SET_PACKET, COMMAND_LENGTH);
+    setAlarm(reconnect, (char *) SET_PACKET, COMMAND_LENGTH);
 
     type = UA_SENDER;
     if (receiveCommand(type) != 0) {
@@ -153,12 +147,10 @@ int llwrite(int fd, char *buffer, int length) {
   static unsigned char C = 0x00;
   char frame[FRAME_SIZE];
   char SU[COMMAND_LENGTH];
-  int size, i, r, bytesRead;
+  int size, r, bytesRead;
 
   size = buildPacket(frame, buffer, length, C);
-
   write(fd, frame, size);
-  setAlarm(resend, frame, size);
 
   bytesRead = 0;
   while (bytesRead != COMMAND_LENGTH) {
@@ -169,6 +161,7 @@ int llwrite(int fd, char *buffer, int length) {
     }
 
     if (r == 1) {
+      printf("%02X\n", SU[bytesRead]);
       bytesRead++;
     }
   }
@@ -183,7 +176,7 @@ int llwrite(int fd, char *buffer, int length) {
 int llread(int fd, char *buffer) {
   static unsigned char transmitterControl = 0x00;
   static unsigned char receiverControl = R;
-  int i, stuffedSize, frameSize;
+  int stuffedSize, frameSize;
   char frame[FRAME_SIZE];
   unsigned char SU[COMMAND_LENGTH];
 
@@ -469,13 +462,12 @@ int stripAndValidate(char *dst, char *src, int length, char controlByte) {
 }
 
 int receiveCommand(CommandType type) {
-  int bytesRead, r;
+  int r;
   CommandState state;
   unsigned char receivedByte;
 
-  bytesRead = 0;
-  state = START_RCV;
 
+  state = START_RCV;
   while (state != STOP_RCV) {
     r = read(fd, &receivedByte, 1);
 
@@ -492,6 +484,6 @@ int receiveCommand(CommandType type) {
 }
 
 
-void resend(char *buffer, int length) {
+void reconnect(char *buffer, int length) {
   write(fd, buffer, length);
 }

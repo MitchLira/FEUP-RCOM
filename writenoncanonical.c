@@ -26,9 +26,6 @@ volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
-    int i, r;
-    char buf[LL_INPUT_MAX_SIZE];
-    char resp[255];
     struct Application app;
 
     if ( (argc < 2) ||
@@ -39,7 +36,7 @@ int main(int argc, char** argv)
     }
 
 
-    r = appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER, "res/pinguim.gif", strlen("res/pinguim.gif"));
+    appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER, "res/pinguim.gif", strlen("res/pinguim.gif"));
     printf("%s\n","estupidoooo\n" );
     appwrite(app);
     appclose(app);
