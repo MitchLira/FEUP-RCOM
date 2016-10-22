@@ -68,6 +68,7 @@ int stripAndValidate(char *dst, char *src, int length, char controlByte);
 char *receiveSU();
 int receiveCommand(CommandType type);
 void resend();
+int packetAccepted(char *SU);
 
 
 
@@ -153,25 +154,27 @@ int llwrite(int fd, char *buffer, int length) {
   int size, r, bytesRead;
 
   size = buildPacket(frame, buffer, length, BUILD_S_CONTROL(S));
-  write(fd, frame, size);
-  setAlarm(resend, frame, size);
+  do {
+    write(fd, frame, size);
+    setAlarm(resend, frame, size);
 
-  bytesRead = 0;
-  while (bytesRead != COMMAND_LENGTH) {
-    r = read(fd, SU + bytesRead, 1);
+    bytesRead = 0;
+    while (bytesRead != COMMAND_LENGTH) {
+      r = read(fd, SU + bytesRead, 1);
 
-    if (connectionTimedOut()) {
-      exit(-1);
+      if (connectionTimedOut()) {
+        exit(-1);
+      }
+
+      if (r == 1) {
+        bytesRead++;
+      }
     }
 
-    if (r == 1) {
-      bytesRead++;
-    }
-  }
+    disableAlarm();
+  } while (!packetAccepted(SU));
 
-  disableAlarm();
   S = (S + 1) % 2;
-
   return size;
 }
 
@@ -188,7 +191,7 @@ int llread(int fd, char *buffer) {
   stuffedSize = receivePacket(fd, frame);
   frameSize = destuff(frame, frame, stuffedSize);
 
-  printf("%02X-%02X \n",S,R);
+  printf("%02X-%02X \n", S, R);
   if (stripAndValidate(buffer, frame, frameSize, BUILD_S_CONTROL(S)) == 0) {
     suControl = (BUILD_R_CONTROL(R) ^ C_RR_SUFFIX);
     S = (S + 1) % 2;
@@ -445,6 +448,7 @@ int stripAndValidate(char *dst, char *src, int length, char controlByte) {
   unsigned char validateBCC2 = 0x00;
   int i;
 
+
    if (! (
     src[START_FLAG_INDEX] == FLAG &&
     src[A_INDEX] == A_SENDER &&
@@ -452,9 +456,8 @@ int stripAndValidate(char *dst, char *src, int length, char controlByte) {
     src[BCC1_INDEX] == (src[A_INDEX] ^ src[C_INDEX]) &&
     src[END_FLAG_INDEX] == FLAG )) {
 
-    return -1;
+      return -1;
     }
-
 
   for (i = D1_INDEX; i < BCC2_INDEX; i++) {
     dst[i - D1_INDEX] = src[i];
@@ -494,4 +497,18 @@ int receiveCommand(CommandType type) {
 
 void resend(char *buffer, int length) {
   write(fd, buffer, length);
+}
+
+
+int packetAccepted(char *SU) {
+  unsigned char C_suffix;
+
+  C_suffix = (SU[2] << 1);
+  C_suffix = (C_suffix >> 1);
+
+  return ( (SU[0] == FLAG) &&
+           (SU[1] == A_SENDER) &&
+           (C_suffix == C_RR_SUFFIX) &&
+           (SU[3] == (SU[1] ^ SU[2])) &&
+           (SU[4] == FLAG) );
 }
