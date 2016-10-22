@@ -64,7 +64,7 @@ int receivePacket(int fd, char *frame);
 int stripAndValidate(char *dst, char *src, int length, char controlByte);
 char *receiveSU();
 int receiveCommand(CommandType type);
-void reconnect();
+void resend();
 
 
 
@@ -121,7 +121,7 @@ int llopen(const char *path, int oflag, int status) {
   state = START_RCV;
   if (status == TRANSMITTER) {
     write(fd, SET_PACKET, COMMAND_LENGTH);  // Send SET to receiver
-    setAlarm(reconnect, (char *) SET_PACKET, COMMAND_LENGTH);
+    setAlarm(resend, (char *) SET_PACKET, COMMAND_LENGTH);
 
     type = UA_SENDER;
     if (receiveCommand(type) != 0) {
@@ -156,7 +156,9 @@ int llwrite(int fd, char *buffer, int length) {
   int size, i, r, bytesRead;
 
   size = buildPacket(frame, buffer, length, C);
+
   write(fd, frame, size);
+  setAlarm(resend, frame, size);
 
   bytesRead = 0;
   while (bytesRead != COMMAND_LENGTH) {
@@ -474,7 +476,7 @@ int receiveCommand(CommandType type) {
   bytesRead = 0;
   state = START_RCV;
 
-  while (bytesRead != COMMAND_LENGTH) {
+  while (state != STOP_RCV) {
     r = read(fd, &receivedByte, 1);
 
     if (connectionTimedOut()) {
@@ -483,18 +485,13 @@ int receiveCommand(CommandType type) {
 
     if (r == 1) {
       updateCommandState(&state, type, receivedByte);
-      bytesRead++;
     }
-  }
-
-  if (state != STOP_RCV) {
-    return -1;
   }
 
   return 0;
 }
 
 
-void reconnect(char *buffer, int length) {
+void resend(char *buffer, int length) {
   write(fd, buffer, length);
 }
