@@ -1,13 +1,13 @@
 CC=gcc
-CFLAGS = -Wall -O3
+CFLAGS = -lm -Wall
 
 all: writenoncanonical noncanonical
 
-writenoncanonical: DataLink.h writenoncanonical.c
-	$(CC) $(CFLAGS) writenoncanonical.c DataLink.c -o writenoncanonical
+writenoncanonical: DataLink.h Application.h Alarm.h writenoncanonical.c
+	$(CC) writenoncanonical.c DataLink.c Application.c Alarm.c -o writenoncanonical $(CFLAGS)
 	
-noncanonical: DataLink.h noncanonical.c
-	$(CC) $(CFLAGS) noncanonical.c DataLink.c -o noncanonical
+noncanonical: DataLink.h Application.h Alarm.h noncanonical.c
+	$(CC) noncanonical.c DataLink.c Application.c Alarm.c -o noncanonical $(CFLAGS)
 	
 clean:
 	rm -f writenoncanonical

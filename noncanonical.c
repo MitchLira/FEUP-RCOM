@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include "DataLink.h"
+#include <math.h>
+#include "Application.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -23,9 +25,7 @@ volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
-    int fd, length;
-    char buf[255];
-
+    struct Application app;
 
     if ( (argc < 2) ||
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -34,28 +34,9 @@ int main(int argc, char** argv)
       exit(1);
     }
 
-    fd = llopen(argv[1], O_RDWR | O_NOCTTY, RECEIVER);
-
-    llread(fd, buf);
-    write(fd, "AA", 3);
+    appopen(&app, argv[1], O_RDWR | O_NOCTTY, RECEIVER);
+    appread(app);
+    appclose(app);
 
     return 0;
-}
-
-
-int receiveMessage(int fd, char* buf) {
-  int i = 0, res;
-
-  while (STOP==FALSE) {       /* loop for input */
-    res = read(fd, buf + i, 1);   /* returns after 1 chars have been input */
-    if (buf[i] == '\0') {
-       STOP=TRUE;
-     }
-
-     if (res == 1) {
-       i++;
-     }
-  }
-
-  return i;
 }

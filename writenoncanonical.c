@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include "DataLink.h"
+#include "Application.h"
 
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -22,13 +23,10 @@ int receiveMessage(int fd, char* buf);
 
 
 volatile int STOP=FALSE;
-int fd;
 
 int main(int argc, char** argv)
 {
-    int i, sum = 0, speed = 0, n;
-    char buf[255];
-    char resp[255];
+    struct Application app;
 
     if ( (argc < 2) ||
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -38,25 +36,12 @@ int main(int argc, char** argv)
     }
 
 
-    fd = llopen(argv[1], O_RDWR | O_NOCTTY, TRANSMITTER);
-
-
-    for (i = 0; i < 10; i++) {
-      buf[i] = 'a' + i;
-    }
-
-    llwrite(fd, buf, 10);
-
-    receiveMessage(fd, resp);
-    printf("Receiver's response: %s\n", resp);
-
-    sleep(2);
-    llclose(fd);
+    appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER, "res/pinguim.gif", strlen("res/pinguim.gif"));
+    printf("%s\n","estupidoooo\n" );
+    appwrite(app);
+    appclose(app);
     return 0;
 }
-
-
-
 
 
 int receiveMessage(int fd, char* buf) {
