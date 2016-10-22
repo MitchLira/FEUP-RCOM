@@ -20,8 +20,6 @@
 #define C_UA          0x07
 #define C_RR_SUFFIX   0x05
 #define C_REJ_SUFFIX  0x01
-#define S             0x40
-#define R             0x80
 #define ESCAPE        0x7D
 #define STUFF_BYTE    0x20
 
@@ -36,6 +34,11 @@
 #define A_INDEX                     1
 #define C_INDEX                     2
 #define BCC1_INDEX                  3
+
+#define BUILD_S_CONTROL(S) (S << 6)
+#define BUILD_R_CONTROL(R) (R << 7)
+#define GET_S_CONTROL(x) (x >> 6)
+#define GET_R_CONTROL(x) (x >> 7)
 
 
 /* Enums / structs */
@@ -64,7 +67,7 @@ int receivePacket(int fd, char *frame);
 int stripAndValidate(char *dst, char *src, int length, char controlByte);
 char *receiveSU();
 int receiveCommand(CommandType type);
-void reconnect();
+void resend();
 
 
 
@@ -115,7 +118,7 @@ int llopen(const char *path, int oflag, int status) {
 
   if (status == TRANSMITTER) {
     write(fd, SET_PACKET, COMMAND_LENGTH);  // Send SET to receiver
-    setAlarm(reconnect, (char *) SET_PACKET, COMMAND_LENGTH);
+    setAlarm(resend, (char *) SET_PACKET, COMMAND_LENGTH);
 
     type = UA_SENDER;
     if (receiveCommand(type) != 0) {
@@ -144,13 +147,14 @@ int llopen(const char *path, int oflag, int status) {
 
 
 int llwrite(int fd, char *buffer, int length) {
-  static unsigned char C = 0x00;
+  static unsigned char S = 0;
   char frame[FRAME_SIZE];
   char SU[COMMAND_LENGTH];
   int size, r, bytesRead;
 
-  size = buildPacket(frame, buffer, length, C);
+  size = buildPacket(frame, buffer, length, BUILD_S_CONTROL(S));
   write(fd, frame, size);
+  setAlarm(resend, frame, size);
 
   bytesRead = 0;
   while (bytesRead != COMMAND_LENGTH) {
@@ -165,7 +169,8 @@ int llwrite(int fd, char *buffer, int length) {
     }
   }
 
-  C ^= S;
+  disableAlarm();
+  S = (S + 1) % 2;
 
   return size;
 }
@@ -173,8 +178,9 @@ int llwrite(int fd, char *buffer, int length) {
 
 
 int llread(int fd, char *buffer) {
-  static unsigned char transmitterControl = 0x00;
-  static unsigned char receiverControl = R;
+  static unsigned char S = 0;
+  static unsigned char R = 1;
+  unsigned char suControl;
   int stuffedSize, frameSize;
   char frame[FRAME_SIZE];
   unsigned char SU[COMMAND_LENGTH];
@@ -182,21 +188,22 @@ int llread(int fd, char *buffer) {
   stuffedSize = receivePacket(fd, frame);
   frameSize = destuff(frame, frame, stuffedSize);
 
-  if (stripAndValidate(buffer, frame, frameSize, transmitterControl) == 0) {
-    receiverControl ^= C_RR_SUFFIX;     // TODO falta remover sufixo
-    transmitterControl ^= S;
-    receiverControl ^= R;
+  printf("%02X-%02X \n",S,R);
+  if (stripAndValidate(buffer, frame, frameSize, BUILD_S_CONTROL(S)) == 0) {
+    suControl = (BUILD_R_CONTROL(R) ^ C_RR_SUFFIX);
+    S = (S + 1) % 2;
+    R = (R + 1) % 2;
   }
   else {
-    receiverControl ^= C_REJ_SUFFIX;
+    suControl = (BUILD_R_CONTROL(R) ^ C_REJ_SUFFIX);
   }
+
 
   SU[START_FLAG_INDEX] = FLAG;
   SU[A_INDEX] = A_SENDER;
-  SU[C_INDEX] = receiverControl;
-  SU[BCC1_INDEX] = SU[A_INDEX] ^ SU[C_INDEX];
+  SU[C_INDEX] = suControl;
+  SU[BCC1_INDEX] = (SU[A_INDEX] ^ SU[C_INDEX]);
   SU[COMMAND_LENGTH-1] = FLAG;
-
 
   write(fd, SU, COMMAND_LENGTH);
 
@@ -358,7 +365,7 @@ int destuff(char *dst, char *src, int length) {
     }
 
     if (foundEscape) {
-      dst[size++] = src[i] ^ STUFF_BYTE;
+      dst[size++] = (src[i] ^ STUFF_BYTE);
       foundEscape = 0;
     }
     else
@@ -438,27 +445,29 @@ int stripAndValidate(char *dst, char *src, int length, char controlByte) {
   unsigned char validateBCC2 = 0x00;
   int i;
 
-  /* if (! (
+   if (! (
     src[START_FLAG_INDEX] == FLAG &&
     src[A_INDEX] == A_SENDER &&
     src[C_INDEX] == controlByte &&
     src[BCC1_INDEX] == (src[A_INDEX] ^ src[C_INDEX]) &&
     src[END_FLAG_INDEX] == FLAG )) {
 
-      return -1;
-      }*/
+    return -1;
+    }
 
 
-  for (i = 0; i < BCC2_INDEX; i++) {
-    dst[i] = src[i + D1_INDEX];
-    validateBCC2 ^= dst[i];
+  for (i = D1_INDEX; i < BCC2_INDEX; i++) {
+    dst[i - D1_INDEX] = src[i];
+    validateBCC2 ^= src[i];
   }
 
-  if (validateBCC2 != src[BCC2_INDEX])
+  if (validateBCC2 != (unsigned char) src[BCC2_INDEX]) {
     return -1;
+  }
 
   return 0;
 }
+
 
 int receiveCommand(CommandType type) {
   int r;
@@ -483,6 +492,6 @@ int receiveCommand(CommandType type) {
 }
 
 
-void reconnect(char *buffer, int length) {
+void resend(char *buffer, int length) {
   write(fd, buffer, length);
 }

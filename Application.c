@@ -118,7 +118,7 @@ int appread(struct Application app){
     return -1;
   }
 
-  memcpy(&fileLength, &buf[3], sizeof(fileLength));
+  memcpy(&fileLength, &buf[3], buf[2]);
 
   int nrPackets = ceil((float) fileLength / LL_INPUT_MAX_SIZE);
 
