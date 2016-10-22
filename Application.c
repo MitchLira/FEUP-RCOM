@@ -3,6 +3,11 @@
 #include <string.h>
 #include <math.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <unistd.h>
 #include "Application.h"
 #include "DataLink.h"
 
@@ -22,8 +27,9 @@ struct Packet {
 
 /* Function headers */
 int createControlPacket(struct Application app, struct Packet *packet, char C_FLAG);
-int appopenWriter(struct Application *app, const char *path, int oflag, int status,
+int appopenWriter(struct Application *app, const char *path, int oflag,
                       const char *fileName, unsigned int fileNameLength);
+int appopenReader(struct Application *app, const char *path, int oflag);
 
 
 
@@ -37,13 +43,16 @@ int appopen(struct Application *app, const char *path, int oflag, int status, ..
   va_start(ap, status);
   r = 0;
 
+  app->status = status;
   if (status == TRANSMITTER) {
     fileName = va_arg(ap, char *);
     fileNameLength = va_arg(ap, unsigned int);
-    r = appopenWriter(app, path, oflag, status, fileName, fileNameLength);
+    r = appopenWriter(app, path, oflag, fileName, fileNameLength);
   }
   else {
-
+    printf("hello1\n");
+    r = appopenReader(app, path, oflag);
+    printf("hello2\n");
   }
 
   va_end(ap);
@@ -83,17 +92,54 @@ int appwrite(struct Application app) {
   }
 
   llwrite(app.filedes, packet.frame, packet.size);
+
   free(packet.frame);
+  free(app.fileName);
+  free(app.buffer);
 
   return 0;
 }
 
 
+int appread(struct Application app){
+  FILE *file;
+  char buf[LL_INPUT_MAX_SIZE];
+  char name[256];
+  unsigned int fileLength;
+  int i;
 
-void appclose(struct Application app) {
-  llclose(app.filedes, TRANSMITTER);
-  free(app.fileName);
-  free(app.buffer);
+  int s = llread(app.filedes, buf);
+
+  memcpy(name, &buf[9], buf[8]);
+  name[buf[8]] = '\0';
+
+  printf("%s\n", name);
+
+  file = fopen(name, "w");
+  if (file == NULL) {
+    fprintf(stderr, "Can't open file to write\n");
+    return -1;
+  }
+
+  memcpy(&fileLength, &buf[3], sizeof(fileLength));
+
+  int nrPackets = ceil((float) fileLength / LL_INPUT_MAX_SIZE);
+
+  for(i = 0; i < nrPackets; i++) {
+    int length = llread(app.filedes,buf);
+    int j;
+    for (j = 0; j < length; j++) {
+      fprintf(file, "%c", buf[j]);
+    }
+  }
+
+  s = llread(app.filedes, buf);
+
+  return 0;
+}
+
+int appclose(struct Application app) {
+  return llclose(app.filedes, app.status);
 }
 
 
@@ -121,7 +167,7 @@ int createControlPacket(struct Application app, struct Packet *packet, char C_FL
 
 
 
-int appopenWriter(struct Application *app, const char *path, int oflag, int status,
+int appopenWriter(struct Application *app, const char *path, int oflag,
                       const char *fileName, unsigned int fileNameLength) {
   FILE *file;
 
@@ -151,7 +197,16 @@ int appopenWriter(struct Application *app, const char *path, int oflag, int stat
   fclose(file);
 
 
-  app->filedes = llopen(path, oflag, status);
+  app->filedes = llopen(path, oflag, TRANSMITTER);
+  if (app->filedes == -1) {
+    exit(-1);
+  }
+
+  return 0;
+}
+
+int appopenReader(struct Application *app, const char *path, int oflag) {
+  app->filedes = llopen(path, oflag, RECEIVER);
   if (app->filedes == -1) {
     exit(-1);
   }

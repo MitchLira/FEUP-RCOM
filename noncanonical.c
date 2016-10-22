@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include "DataLink.h"
 #include <math.h>
+#include "Application.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -24,11 +25,8 @@ volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
-    FILE *file;
-    int fd;
-    char buf[LL_INPUT_MAX_SIZE];
-    char name[256];
-    unsigned int fileLength;
+    struct Application app;
+    int r;
 
     if ( (argc < 2) ||
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -37,54 +35,9 @@ int main(int argc, char** argv)
       exit(1);
     }
 
-    fd = llopen(argv[1], O_RDWR | O_NOCTTY, RECEIVER);
+    r = appopen(&app, argv[1], O_RDWR | O_NOCTTY, RECEIVER);
+    appread(app);
+    appclose(app);
 
-    int i;
-    int s = llread(fd, buf);
-
-    memcpy(name, &buf[9], buf[8]);
-    name[buf[8]] = '\0';
-
-    printf("%s\n", name);
-
-    file = fopen(name, "w");
-    if (file == NULL) {
-      fprintf(stderr, "Can't open file to write\n");
-      return -1;
-    }
-
-    memcpy(&fileLength, &buf[3], sizeof(fileLength));
-
-    int nrPackets = ceil((float) fileLength / LL_INPUT_MAX_SIZE);
-
-
-    for(i=0; i < nrPackets; i++) {
-      int length = llread(fd,buf);
-      int j;
-      for (j = 0; j < length; j++) {
-        fprintf(file, "%c", buf[j]);
-      }
-    }
-
-    s = llread(fd, buf);
-    llclose(fd, RECEIVER);
     return 0;
-}
-
-
-int receiveMessage(int fd, char* buf) {
-  int i = 0, res;
-
-  while (STOP==FALSE) {       /* loop for input */
-    res = read(fd, buf + i, 1);   /* returns after 1 chars have been input */
-    if (buf[i] == '\0') {
-       STOP=TRUE;
-     }
-
-     if (res == 1) {
-       i++;
-     }
-  }
-
-  return i;
 }
