@@ -40,14 +40,11 @@ int main(int argc, char** argv)
 
 
     r = appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER, "res/pinguim.gif", strlen("res/pinguim.gif"));
-
+    printf("%s\n","estupidoooo\n" );
     appwrite(app);
     appclose(app);
     return 0;
 }
-
-
-
 
 
 int receiveMessage(int fd, char* buf) {
