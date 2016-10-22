@@ -31,7 +31,6 @@
 #define BAUDRATE          B38400
 
 #define FRAME_DELIMITERS_SIZE       6
-#define SU_FRAME_SIZE               5
 #define FRAME_SIZE                  LL_INPUT_MAX_SIZE * 2
 #define START_FLAG_INDEX            0
 #define A_INDEX                     1
@@ -121,8 +120,8 @@ int llopen(const char *path, int oflag, int status) {
 
   state = START_RCV;
   if (status == TRANSMITTER) {
-    write(fd, SET_PACKET, sizeof(SET_PACKET));  // Send SET to receiver
-    setAlarm(reconnect, (char *) SET_PACKET, sizeof(SET_PACKET));
+    write(fd, SET_PACKET, COMMAND_LENGTH);  // Send SET to receiver
+    setAlarm(reconnect, (char *) SET_PACKET, COMMAND_LENGTH);
 
     type = UA_SENDER;
     if (receiveCommand(type) != 0) {
@@ -135,16 +134,11 @@ int llopen(const char *path, int oflag, int status) {
   else if (status == RECEIVER) {
 
     type = SET;
-    for (i = 0; i < sizeof(SET_PACKET); i++) {
-      read(fd, &receivedByte, 1);
-      updateCommandState(&state, type, receivedByte);
+    if (receiveCommand(type) != 0) {
+      fprintf(stderr, "Can't connect to the sender. Please try again later.\n");
     }
 
-    if (state != STOP_RCV) {
-      exit(-1);
-    }
-
-    write(fd, UA_SENDER_PACKET, sizeof(UA_SENDER_PACKET));
+    write(fd, UA_SENDER_PACKET, COMMAND_LENGTH);
   }
 
 
@@ -156,13 +150,13 @@ int llopen(const char *path, int oflag, int status) {
 int llwrite(int fd, char *buffer, int length) {
   static unsigned char C = 0x00;
   char frame[FRAME_SIZE];
-  char SU[SU_FRAME_SIZE];
+  char SU[COMMAND_LENGTH];
   int size, i;
 
   size = buildPacket(frame, buffer, length, C);
   write(fd, frame, size);
 
-  for (i = 0; i < SU_FRAME_SIZE; i++) {
+  for (i = 0; i < COMMAND_LENGTH; i++) {
     read(fd, SU + i, 1);
   }
 
@@ -178,7 +172,7 @@ int llread(int fd, char *buffer) {
   static unsigned char receiverControl = R;
   int i, stuffedSize, frameSize;
   char frame[FRAME_SIZE];
-  unsigned char SU[SU_FRAME_SIZE];
+  unsigned char SU[COMMAND_LENGTH];
 
   stuffedSize = receivePacket(fd, frame);
   frameSize = destuff(frame, frame, stuffedSize);
@@ -196,10 +190,10 @@ int llread(int fd, char *buffer) {
   SU[A_INDEX] = A_SENDER;
   SU[C_INDEX] = receiverControl;
   SU[BCC1_INDEX] = SU[A_INDEX] ^ SU[C_INDEX];
-  SU[SU_FRAME_SIZE-1] = FLAG;
+  SU[COMMAND_LENGTH-1] = FLAG;
 
 
-  write(fd, SU, sizeof(SU));
+  write(fd, SU, COMMAND_LENGTH);
 
   return frameSize - FRAME_DELIMITERS_SIZE;
 }
@@ -221,45 +215,82 @@ void updateCommandState(CommandState* state, CommandType type, unsigned char byt
 
   switch(*state) {
   case START_RCV:
-    if (byte == FLAG)
+    if (byte == FLAG) {
       *state = FLAG_RCV;
+    }
     break;
 
   case FLAG_RCV:
-    if (byte == A_SENDER)
+    if ( ((type == SET) ||
+         (type == UA_SENDER) ||
+         (type == DISC_SENDER)) &&
+         byte == A_SENDER) {
       *state = A_RCV;
-    else if (byte == FLAG) ;
-    else
+    }
+    else if ( ((type == UA_RECEIVER) ||
+               (type == DISC_RECEIVER)) &&
+               byte == A_RECEIVER ) {
+      *state = A_RCV;
+    }
+    else if (byte == FLAG) ;        // stay in the same state
+    else {
       *state = START_RCV;
+    }
     break;
 
   case A_RCV:
-    if (type == UA_SENDER && byte == C_UA)
+    if ( ((type == UA_SENDER) ||
+          (type == UA_RECEIVER)) &&
+          byte == C_UA ) {
       *state = C_RCV;
-    else if (type == SET && byte == C_SET)
+    }
+    else if (type == SET && byte == C_SET) {
       *state = C_RCV;
-    else if (byte == FLAG)
+    }
+    else if ( ((type == DISC_SENDER) ||
+               (type == DISC_RECEIVER)) &&
+               byte == C_DISC ) {
+      *state = C_RCV;
+    }
+    else if (byte == FLAG) {
       *state = FLAG_RCV;
-    else
+    }
+    else {
       *state = START_RCV;
+    }
     break;
 
   case C_RCV:
-    if (type == UA_SENDER && byte ==  (A_SENDER^C_UA))
+    if (type == UA_SENDER && byte == (A_SENDER^C_UA)) {
       *state = BCC_OK;
-    else if (type == SET && byte ==  (A_SENDER^C_SET))
+    }
+    else if (type == UA_RECEIVER && byte == (A_RECEIVER^C_UA)) {
       *state = BCC_OK;
-    else if (byte == FLAG)
+    }
+    else if (type == SET && byte == (A_SENDER^C_SET)) {
+      *state = BCC_OK;
+    }
+    else if (type == DISC_SENDER && byte == (A_SENDER^C_DISC)) {
+      *state = BCC_OK;
+    }
+    else if (type == DISC_RECEIVER && byte == (A_RECEIVER^C_DISC)) {
+      *state = BCC_OK;
+    }
+    else if (byte == FLAG) {
       *state = FLAG_RCV;
-    else
+    }
+    else {
       *state = START_RCV;
+    }
     break;
 
   case BCC_OK:
-    if (byte == FLAG)
+    if (byte == FLAG) {
       *state = STOP_RCV;
-    else
+    }
+    else {
       *state = START_RCV;
+    }
     break;
 
   default:
