@@ -153,13 +153,22 @@ int llwrite(int fd, char *buffer, int length) {
   static unsigned char C = 0x00;
   char frame[FRAME_SIZE];
   char SU[COMMAND_LENGTH];
-  int size, i;
+  int size, i, r, bytesRead;
 
   size = buildPacket(frame, buffer, length, C);
   write(fd, frame, size);
 
-  for (i = 0; i < COMMAND_LENGTH; i++) {
-    read(fd, SU + i, 1);
+  bytesRead = 0;
+  while (bytesRead != COMMAND_LENGTH) {
+    r = read(fd, SU + bytesRead, 1);
+
+    if (connectionTimedOut()) {
+      exit(-1);
+    }
+
+    if (r == 1) {
+      bytesRead++;
+    }
   }
 
   C ^= S;
