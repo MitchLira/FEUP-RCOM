@@ -210,7 +210,7 @@ int llclose(int fd, int status) {
       fprintf(stderr, "Can't connect to the receiver. Please try again later.\n");
     }
 
-    write(fd, UA_RECEIVER, COMMAND_LENGTH);
+    write(fd, UA_RECEIVER_PACKET, COMMAND_LENGTH);
   }
   else if (status == RECEIVER) {
     type = DISC_SENDER;
