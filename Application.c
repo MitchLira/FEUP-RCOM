@@ -51,9 +51,7 @@ int appopen(struct Application *app, const char *path, int oflag, int status, ..
     r = appopenWriter(app, path, oflag, fileName, fileNameLength);
   }
   else {
-    printf("hello1\n");
     r = appopenReader(app, path, oflag);
-    printf("hello2\n");
   }
 
   va_end(ap);
@@ -113,8 +111,6 @@ int appread(struct Application app){
 
   memcpy(name, &buf[9], buf[8]);
   name[(int) buf[8]] = '\0';
-
-  printf("%s\n", name);
 
   file = fopen(name, "w");
   if (file == NULL) {

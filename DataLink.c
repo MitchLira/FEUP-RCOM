@@ -161,7 +161,6 @@ int llwrite(int fd, char *buffer, int length) {
     }
 
     if (r == 1) {
-      printf("%02X\n", SU[bytesRead]);
       bytesRead++;
     }
   }
