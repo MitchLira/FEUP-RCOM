@@ -199,7 +199,34 @@ int llread(int fd, char *buffer) {
 }
 
 
-int llclose(int fd) {
+int llclose(int fd, int status) {
+  CommandType type;
+
+  if (status == TRANSMITTER) {
+    write(fd, DISC_SENDER_PACKET, COMMAND_LENGTH);
+
+    type = DISC_RECEIVER;
+    if (receiveCommand(type) != 0) {
+      fprintf(stderr, "Can't connect to the receiver. Please try again later.\n");
+    }
+
+    write(fd, UA_RECEIVER, COMMAND_LENGTH);
+  }
+  else if (status == RECEIVER) {
+    type = DISC_SENDER;
+    if (receiveCommand(type) != 0) {
+      fprintf(stderr, "Can't connect to the sender. Please try again later.\n");
+    }
+
+    write(fd, DISC_RECEIVER_PACKET, COMMAND_LENGTH);
+
+    type = UA_RECEIVER;
+    if (receiveCommand(type) != 0) {
+      fprintf(stderr, "Can't connect to the sender. Please try again later.\n");
+    }
+  }
+
+
   if (tcsetattr(fd,TCSANOW,&oldtio) == -1) {
     perror("tcsetattr");
     exit(-1);

@@ -104,9 +104,9 @@ int appwrite(struct Application app) {
 
 void appclose(struct Application app) {
   printf("Fecha\n");
+  llclose(app.filedes, TRANSMITTER);
   free(app.fileName);
   free(app.buffer);
-  llclose(app.filedes);
 }
 
 
@@ -123,7 +123,7 @@ int createControlPacket(struct Application app, struct Packet *packet, char C_FL
   packet->frame[1] = T_FILE_SIZE;
   packet->frame[2] = sizeof(app.fileSize);
   memcpy(&packet->frame[3], &app.fileSize, sizeof(app.fileSize));
-  
+
   packet->frame[7] = T_FILE_NAME;
   packet->frame[8] = app.fileNameLength;
   memcpy(&packet->frame[9], app.fileName, app.fileNameLength);

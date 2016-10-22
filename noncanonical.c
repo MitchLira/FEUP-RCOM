@@ -70,6 +70,7 @@ int main(int argc, char** argv)
     }
 
     s = llread(fd, buf);
+    llclose(fd, RECEIVER);
     return 0;
 }
 
