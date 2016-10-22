@@ -64,7 +64,7 @@ void stuff(char *frame, int index, char byte);
 int destuff(char *dst, char *src, int length);
 int buildPacket(char *dst, char *src, int length, char controlByte);
 int receivePacket(int fd, char *frame);
-int stripAndValidate(char *dst, char *src, int length, char controlByte);
+int stripAndValidate(char *dst, char *src, int length, unsigned char R);
 char *receiveSU();
 int receiveCommand(CommandType type);
 void resend();
@@ -181,23 +181,28 @@ int llwrite(int fd, char *buffer, int length) {
 
 
 int llread(int fd, char *buffer) {
-  static unsigned char S = 0;
   static unsigned char R = 1;
   unsigned char suControl;
-  int stuffedSize, frameSize;
+  int stuffedSize, frameSize, validPacket, r;
   char frame[FRAME_SIZE];
   unsigned char SU[COMMAND_LENGTH];
 
+  do {
   stuffedSize = receivePacket(fd, frame);
   frameSize = destuff(frame, frame, stuffedSize);
 
-  printf("%02X-%02X \n", S, R);
-  if (stripAndValidate(buffer, frame, frameSize, BUILD_S_CONTROL(S)) == 0) {
+  r = stripAndValidate(buffer, frame, frameSize, R);
+  if (r == 0) {
+    validPacket = 1;
     suControl = (BUILD_R_CONTROL(R) ^ C_RR_SUFFIX);
-    S = (S + 1) % 2;
     R = (R + 1) % 2;
   }
+  else if (r == 1) {
+    validPacket = 0;
+    suControl = (BUILD_R_CONTROL(R) ^ C_RR_SUFFIX);
+  }
   else {
+    validPacket = 0;
     suControl = (BUILD_R_CONTROL(R) ^ C_REJ_SUFFIX);
   }
 
@@ -208,6 +213,7 @@ int llread(int fd, char *buffer) {
   SU[COMMAND_LENGTH-1] = FLAG;
 
   write(fd, SU, COMMAND_LENGTH);
+} while(!validPacket);
 
   return frameSize - FRAME_DELIMITERS_SIZE;
 }
@@ -433,31 +439,39 @@ int receivePacket(int fd, char *frame) {
   for (i = 0; flagCount < 2; i++) {
     read(fd, frame + i, 1);
 
-    if (frame[i] == FLAG)
+    if (frame[i] == FLAG) {
+      printf("%d\n", i);
       flagCount++;
+    }
   }
 
   return i;
 }
 
 
-int stripAndValidate(char *dst, char *src, int length, char controlByte) {
+int stripAndValidate(char *dst, char *src, int length, unsigned char R) {
   const int D1_INDEX = BCC1_INDEX + 1;
   const int END_FLAG_INDEX = length - 1;
   const int BCC2_INDEX = length - 2;
   unsigned char validateBCC2 = 0x00;
+  unsigned char S;
   int i;
 
+    S = (R + 1) % 2;
 
-   if (! (
+    if (GET_S_CONTROL(src[C_INDEX]) == R) {
+      // Repeated packet
+      return 1;
+    }
+   else if (! (
     src[START_FLAG_INDEX] == FLAG &&
     src[A_INDEX] == A_SENDER &&
-    src[C_INDEX] == controlByte &&
+    src[C_INDEX] == BUILD_S_CONTROL(S) &&
     src[BCC1_INDEX] == (src[A_INDEX] ^ src[C_INDEX]) &&
     src[END_FLAG_INDEX] == FLAG )) {
 
-      return -1;
-    }
+    return -1;
+  }
 
   for (i = D1_INDEX; i < BCC2_INDEX; i++) {
     dst[i - D1_INDEX] = src[i];
