@@ -214,7 +214,6 @@ int llclose(int fd, int status) {
   CommandType type;
 
   if (status == TRANSMITTER) {
-    printf("send1\n");
     write(fd, DISC_SENDER_PACKET, COMMAND_LENGTH);
 
     type = DISC_RECEIVER;
@@ -223,7 +222,6 @@ int llclose(int fd, int status) {
       return -1;
     }
 
-    printf("send2\n");
     write(fd, UA_RECEIVER_PACKET, COMMAND_LENGTH);
   }
   else if (status == RECEIVER) {
@@ -476,11 +474,8 @@ int receiveCommand(CommandType type) {
   bytesRead = 0;
   state = START_RCV;
 
-  printf("---------------------------\n");
-
   while (bytesRead != COMMAND_LENGTH) {
     r = read(fd, &receivedByte, 1);
-    printf("%02X\n", receivedByte);
 
     if (connectionTimedOut()) {
       return -1;

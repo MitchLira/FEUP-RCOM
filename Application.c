@@ -76,27 +76,15 @@ int appwrite(struct Application app) {
 
     llwrite(app.filedes, &app.buffer[i * LL_INPUT_MAX_SIZE], size);
     bytesRemaining -= size;
-    /*
-    int j;
-    for (j = 0; j < size; j++) {
-      printf("%02X - ", (unsigned char) app.buffer[i*LL_INPUT_MAX_SIZE + j]);
-    }
-    printf("\n");
-    */
   }
 
   if (createControlPacket(app, &packet, END) != 0) {
     exit(-1);
   }
 
-  for (i = 0; i < packet.size; i++) {
-    printf("%02X\n", (unsigned char) packet.frame[i]);
-  }
-
   llwrite(app.filedes, packet.frame, packet.size);
   free(packet.frame);
 
-  printf("%d\n", app.fileSize);
   return 0;
 }
 

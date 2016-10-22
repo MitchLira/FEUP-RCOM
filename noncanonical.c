@@ -48,14 +48,11 @@ int main(int argc, char** argv)
     printf("%s\n", name);
 
     file = fopen(name, "w");
-    if (file == NULL)
-      printf("\n LELELELELELELE \n");
-
-    /*
-    for (i  = 0; i < s; i++) {
-      printf("%c\n", (unsigned char) buf[i]);
+    if (file == NULL) {
+      fprintf(stderr, "Can't open file to write\n");
+      return -1;
     }
-    */
+
     memcpy(&fileLength, &buf[3], sizeof(fileLength));
 
     int nrPackets = ceil((float) fileLength / LL_INPUT_MAX_SIZE);
