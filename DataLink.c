@@ -201,7 +201,6 @@ int llread(int fd, char *buffer) {
     suControl = (BUILD_R_CONTROL(R) ^ C_REJ_SUFFIX);
   }
 
-
   SU[START_FLAG_INDEX] = FLAG;
   SU[A_INDEX] = A_SENDER;
   SU[C_INDEX] = suControl;
@@ -227,6 +226,7 @@ int llclose(int fd, int status) {
     }
 
     write(fd, UA_RECEIVER_PACKET, COMMAND_LENGTH);
+    sleep(1);
   }
   else if (status == RECEIVER) {
     type = DISC_SENDER;
