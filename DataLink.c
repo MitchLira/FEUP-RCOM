@@ -39,16 +39,24 @@
 #define BCC1_INDEX                  3
 
 
-/* Global/Const variables */
+/* Enums / structs */
+typedef enum { START_RCV, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP_RCV } CommandState;
+typedef enum { SET, UA_SENDER, UA_RECEIVER, DISC_SENDER, DISC_RECEIVER } CommandType;
+
+/* Global / const variables */
+const unsigned int  COMMAND_LENGTH = 5;
 const unsigned char SET_PACKET[] = {FLAG, A_SENDER, C_SET, A_SENDER^C_SET, FLAG};
 const unsigned char UA_SENDER_PACKET[] = {FLAG, A_SENDER, C_UA, A_SENDER^C_UA, FLAG};
+const unsigned char UA_RECEIVER_PACKET[] = {FLAG, A_RECEIVER, C_UA, A_RECEIVER^C_UA, FLAG};
+const unsigned char DISC_SENDER_PACKET[] = {FLAG, A_SENDER, C_DISC, A_SENDER^C_DISC, FLAG};
+const unsigned char DISC_RECEIVER_PACKET[] = {FLAG, A_RECEIVER, C_DISC, A_RECEIVER^C_DISC, FLAG};
 
 int fd, numberTries = 0;
 struct termios oldtio,newtio;
 
 
 /* Function headers */
-void updateState(ConnectionState* state, unsigned char byte, int status);
+void updateCommandState(CommandState* state, CommandType type, unsigned char byte);
 int needsStuffing(char byte);
 void stuff(char *frame, int index, char byte);
 int destuff(char *dst, char *src, int length);
@@ -56,7 +64,7 @@ int buildPacket(char *dst, char *src, int length, char controlByte);
 int receivePacket(int fd, char *frame);
 int stripAndValidate(char *dst, char *src, int length, char controlByte);
 char *receiveSU();
-int receiveCommand(int status);
+int receiveCommand(CommandType type);
 void reconnect();
 
 
@@ -64,7 +72,8 @@ void reconnect();
 int llopen(const char *path, int oflag, int status) {
   int i, bytesRead, r;
   unsigned char receivedByte;
-  ConnectionState state;
+  CommandType type;
+  CommandState state;
 
   /*
     Open serial port device for reading and writing and not as controlling tty
@@ -115,7 +124,8 @@ int llopen(const char *path, int oflag, int status) {
     write(fd, SET_PACKET, sizeof(SET_PACKET));  // Send SET to receiver
     setAlarm(reconnect, (char *) SET_PACKET, sizeof(SET_PACKET));
 
-    if (receiveCommand(status) != 0) {
+    type = UA_SENDER;
+    if (receiveCommand(type) != 0) {
       fprintf(stderr, "Can't connect to the receiver. Please try again later.\n");
     }
 
@@ -124,9 +134,10 @@ int llopen(const char *path, int oflag, int status) {
   }
   else if (status == RECEIVER) {
 
+    type = SET;
     for (i = 0; i < sizeof(SET_PACKET); i++) {
       read(fd, &receivedByte, 1);
-      updateState(&state, receivedByte, status);
+      updateCommandState(&state, type, receivedByte);
     }
 
     if (state != STOP_RCV) {
@@ -206,7 +217,7 @@ int llclose(int fd) {
 
 
 
-void updateState(ConnectionState* state, unsigned char byte, int status) {
+void updateCommandState(CommandState* state, CommandType type, unsigned char byte) {
 
   switch(*state) {
   case START_RCV:
@@ -223,9 +234,9 @@ void updateState(ConnectionState* state, unsigned char byte, int status) {
     break;
 
   case A_RCV:
-    if (status == TRANSMITTER && byte == C_UA)
+    if (type == UA_SENDER && byte == C_UA)
       *state = C_RCV;
-    else if (status == RECEIVER && byte == C_SET)
+    else if (type == SET && byte == C_SET)
       *state = C_RCV;
     else if (byte == FLAG)
       *state = FLAG_RCV;
@@ -234,9 +245,9 @@ void updateState(ConnectionState* state, unsigned char byte, int status) {
     break;
 
   case C_RCV:
-    if (status == TRANSMITTER && byte ==  (A_SENDER^C_UA))
+    if (type == UA_SENDER && byte ==  (A_SENDER^C_UA))
       *state = BCC_OK;
-    else if (status == RECEIVER && byte ==  (A_SENDER^C_SET))
+    else if (type == SET && byte ==  (A_SENDER^C_SET))
       *state = BCC_OK;
     else if (byte == FLAG)
       *state = FLAG_RCV;
@@ -383,13 +394,15 @@ int stripAndValidate(char *dst, char *src, int length, char controlByte) {
   return 0;
 }
 
-int receiveCommand(int status) {
+int receiveCommand(CommandType type) {
   int bytesRead, r;
-  ConnectionState state;
+  CommandState state;
   unsigned char receivedByte;
 
   bytesRead = 0;
-  while (bytesRead != sizeof(UA_SENDER_PACKET)) {
+  state = START_RCV;
+
+  while (bytesRead != COMMAND_LENGTH) {
     r = read(fd, &receivedByte, 1);
 
     if (connectionTimedOut()) {
@@ -397,7 +410,7 @@ int receiveCommand(int status) {
     }
 
     if (r == 1) {
-      updateState(&state, receivedByte, status);
+      updateCommandState(&state, type, receivedByte);
       bytesRead++;
     }
   }

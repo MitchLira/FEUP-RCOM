@@ -4,6 +4,7 @@
 void handleAlarm();
 void configAlarm(unsigned int nrTries, unsigned int waitPeriod);
 void setAlarm(void (*func)(char *), char* buffer, int length);
+void disableAlarm();
 int connectionTimedOut();
 
 #endif
