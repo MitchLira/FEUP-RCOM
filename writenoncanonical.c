@@ -43,7 +43,9 @@ int main(int argc, char** argv)
 
     appwrite(app);
     appclose(app);
-    sleep(2);
+    sleep(6);
+    printf("Fecha\n");
+
     return 0;
 }
 

@@ -80,11 +80,11 @@ int llopen(const char *path, int oflag, int status) {
   */
 
     fd = open(path, oflag);
-    if (fd <0) {perror(path); exit(-1); }
+    if (fd <0) {perror(path); return -1; }
 
     if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
       perror("tcgetattr");
-      exit(-1);
+      return -1;
     }
 
     bzero(&newtio, sizeof(newtio));
@@ -112,7 +112,7 @@ int llopen(const char *path, int oflag, int status) {
 
     if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
       perror("tcsetattr");
-      exit(-1);
+      return -1;
     }
 
   configAlarm(CONNECT_NR_TRIES, UA_WAIT_TIME);
@@ -126,6 +126,7 @@ int llopen(const char *path, int oflag, int status) {
     type = UA_SENDER;
     if (receiveCommand(type) != 0) {
       fprintf(stderr, "Can't connect to the receiver. Please try again later.\n");
+      return -1;
     }
 
     disableAlarm();
@@ -136,6 +137,7 @@ int llopen(const char *path, int oflag, int status) {
     type = SET;
     if (receiveCommand(type) != 0) {
       fprintf(stderr, "Can't connect to the sender. Please try again later.\n");
+      return -1;
     }
 
     write(fd, UA_SENDER_PACKET, COMMAND_LENGTH);
@@ -203,19 +205,23 @@ int llclose(int fd, int status) {
   CommandType type;
 
   if (status == TRANSMITTER) {
+    printf("send1\n");
     write(fd, DISC_SENDER_PACKET, COMMAND_LENGTH);
 
     type = DISC_RECEIVER;
     if (receiveCommand(type) != 0) {
       fprintf(stderr, "Can't connect to the receiver. Please try again later.\n");
+      return -1;
     }
 
+    printf("send2\n");
     write(fd, UA_RECEIVER_PACKET, COMMAND_LENGTH);
   }
   else if (status == RECEIVER) {
     type = DISC_SENDER;
     if (receiveCommand(type) != 0) {
       fprintf(stderr, "Can't connect to the sender. Please try again later.\n");
+      return -1;
     }
 
     write(fd, DISC_RECEIVER_PACKET, COMMAND_LENGTH);
@@ -223,13 +229,14 @@ int llclose(int fd, int status) {
     type = UA_RECEIVER;
     if (receiveCommand(type) != 0) {
       fprintf(stderr, "Can't connect to the sender. Please try again later.\n");
+      return -1;
     }
   }
 
 
   if (tcsetattr(fd,TCSANOW,&oldtio) == -1) {
     perror("tcsetattr");
-    exit(-1);
+    return -1;
   }
 
   close(fd);
@@ -460,11 +467,14 @@ int receiveCommand(CommandType type) {
   bytesRead = 0;
   state = START_RCV;
 
+  printf("---------------------------\n");
+
   while (bytesRead != COMMAND_LENGTH) {
     r = read(fd, &receivedByte, 1);
+    printf("%02X\n", receivedByte);
 
     if (connectionTimedOut()) {
-      exit(-1);
+      return -1;
     }
 
     if (r == 1) {
@@ -474,7 +484,7 @@ int receiveCommand(CommandType type) {
   }
 
   if (state != STOP_RCV) {
-    exit(-1);
+    return -1;
   }
 
   return 0;

@@ -103,7 +103,6 @@ int appwrite(struct Application app) {
 
 
 void appclose(struct Application app) {
-  printf("Fecha\n");
   llclose(app.filedes, TRANSMITTER);
   free(app.fileName);
   free(app.buffer);
