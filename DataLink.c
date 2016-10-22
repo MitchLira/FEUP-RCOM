@@ -12,11 +12,12 @@
 
 
 /* Definitions */
-#define FLAG   0x7E
-#define A      0x03
-#define C_SET  0x03
-#define C_DISC 0x0B
-#define C_UA   0x07
+#define FLAG          0x7E
+#define A_SENDER      0x03
+#define A_RECEIVER    0x01
+#define C_SET         0x03
+#define C_DISC        0x0B
+#define C_UA          0x07
 #define C_RR_SUFFIX   0x05
 #define C_REJ_SUFFIX  0x01
 #define S             0x40
@@ -39,8 +40,8 @@
 
 
 /* Global/Const variables */
-const unsigned char SET[] = {FLAG, A, C_SET, A^C_SET, FLAG};
-const unsigned char UA[] = {FLAG, A, C_UA, A^C_UA, FLAG};
+const unsigned char SET_PACKET[] = {FLAG, A_SENDER, C_SET, A_SENDER^C_SET, FLAG};
+const unsigned char UA_SENDER_PACKET[] = {FLAG, A_SENDER, C_UA, A_SENDER^C_UA, FLAG};
 
 int fd, numberTries = 0;
 struct termios oldtio,newtio;
@@ -111,8 +112,8 @@ int llopen(const char *path, int oflag, int status) {
 
   state = START_RCV;
   if (status == TRANSMITTER) {
-    write(fd, SET, sizeof(SET));  // Send SET to receiver
-    setAlarm(reconnect, (char *) SET, sizeof(SET));
+    write(fd, SET_PACKET, sizeof(SET_PACKET));  // Send SET to receiver
+    setAlarm(reconnect, (char *) SET_PACKET, sizeof(SET_PACKET));
 
     if (receiveCommand(status) != 0) {
       fprintf(stderr, "Can't connect to the receiver. Please try again later.\n");
@@ -123,7 +124,7 @@ int llopen(const char *path, int oflag, int status) {
   }
   else if (status == RECEIVER) {
 
-    for (i = 0; i < sizeof(SET); i++) {
+    for (i = 0; i < sizeof(SET_PACKET); i++) {
       read(fd, &receivedByte, 1);
       updateState(&state, receivedByte, status);
     }
@@ -132,7 +133,7 @@ int llopen(const char *path, int oflag, int status) {
       exit(-1);
     }
 
-    write(fd, UA, sizeof(UA));
+    write(fd, UA_SENDER_PACKET, sizeof(UA_SENDER_PACKET));
   }
 
 
@@ -181,7 +182,7 @@ int llread(int fd, char *buffer) {
   }
 
   SU[START_FLAG_INDEX] = FLAG;
-  SU[A_INDEX] = A;
+  SU[A_INDEX] = A_SENDER;
   SU[C_INDEX] = receiverControl;
   SU[BCC1_INDEX] = SU[A_INDEX] ^ SU[C_INDEX];
   SU[SU_FRAME_SIZE-1] = FLAG;
@@ -214,7 +215,7 @@ void updateState(ConnectionState* state, unsigned char byte, int status) {
     break;
 
   case FLAG_RCV:
-    if (byte == A)
+    if (byte == A_SENDER)
       *state = A_RCV;
     else if (byte == FLAG) ;
     else
@@ -233,9 +234,9 @@ void updateState(ConnectionState* state, unsigned char byte, int status) {
     break;
 
   case C_RCV:
-    if (status == TRANSMITTER && byte ==  (A^C_UA))
+    if (status == TRANSMITTER && byte ==  (A_SENDER^C_UA))
       *state = BCC_OK;
-    else if (status == RECEIVER && byte ==  (A^C_SET))
+    else if (status == RECEIVER && byte ==  (A_SENDER^C_SET))
       *state = BCC_OK;
     else if (byte == FLAG)
       *state = FLAG_RCV;
@@ -297,10 +298,10 @@ int buildPacket(char *dst, char *src, int length, char controlByte) {
   unsigned char BCC2 = 0x00;
 
   n = 0;
-  BCC1 = A ^ controlByte;
+  BCC1 = A_SENDER ^ controlByte;
 
   dst[n++] = FLAG;
-  dst[n++] = A;
+  dst[n++] = A_SENDER;
   dst[n++] = controlByte;
 
   if (needsStuffing(BCC1)) {
@@ -362,7 +363,7 @@ int stripAndValidate(char *dst, char *src, int length, char controlByte) {
 
   /* if (! (
     src[START_FLAG_INDEX] == FLAG &&
-    src[A_INDEX] == A &&
+    src[A_INDEX] == A_SENDER &&
     src[C_INDEX] == controlByte &&
     src[BCC1_INDEX] == (src[A_INDEX] ^ src[C_INDEX]) &&
     src[END_FLAG_INDEX] == FLAG )) {
@@ -388,7 +389,7 @@ int receiveCommand(int status) {
   unsigned char receivedByte;
 
   bytesRead = 0;
-  while (bytesRead != sizeof(UA)) {
+  while (bytesRead != sizeof(UA_SENDER_PACKET)) {
     r = read(fd, &receivedByte, 1);
 
     if (connectionTimedOut()) {
