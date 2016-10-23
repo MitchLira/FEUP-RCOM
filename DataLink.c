@@ -41,6 +41,10 @@
 #define GET_R_CONTROL(x) (x >> 7)
 
 
+#define FALSE   0
+#define TRUE    1
+
+
 /* Enums / structs */
 typedef enum { START_RCV, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP_RCV } CommandState;
 typedef enum { SET, UA_SENDER, UA_RECEIVER, DISC_SENDER, DISC_RECEIVER } CommandType;
@@ -198,20 +202,18 @@ int llread(int fd, char *buffer) {
 
   r = stripAndValidate(buffer, frame, frameSize, R);
   if (r == 0) {
-    validPacket = 1;
+    validPacket = TRUE;
     suControl = (BUILD_R_CONTROL(R) ^ C_RR_SUFFIX);
     R = (R + 1) % 2;
   }
   else if (r == 1) {
-    validPacket = 0;
+    validPacket = FALSE;
     suControl = (BUILD_R_CONTROL(R) ^ C_RR_SUFFIX);
   }
   else {
-    validPacket = 0;
+    validPacket = FALSE;
     suControl = (BUILD_R_CONTROL(R) ^ C_REJ_SUFFIX);
   }
-
-  tcflush(fd, TCIOFLUSH);
 
   SU[START_FLAG_INDEX] = FLAG;
   SU[A_INDEX] = A_SENDER;
@@ -440,25 +442,69 @@ int buildPacket(char *dst, char *src, int length, char controlByte) {
 
 
 int receivePacket(int fd, char *frame) {
-  int i, flagCount;
+  int i;
+  unsigned char byte;
+  CommandState state;
 
-  flagCount = 0;  i = 0;
-  while(1) {
-    read(fd, frame, 1);
-    if (frame[0] == FLAG) {
-      for (i = 1; flagCount < 1; i++) {
+  i = 0;
+  state = START_RCV;
 
-        read(fd, frame + i, 1);
+  while (state != STOP_RCV) {
+    read(fd, &byte, 1);
 
-        if (frame[i] == FLAG && i != 1) {
-          printf("%d\n", i);
-          flagCount++;
+    switch(state) {
+      case START_RCV:
+        if (byte == FLAG) {
+          frame[i++] = byte;
+          state = FLAG_RCV;
         }
-    }
+        break;
 
-    break;
+      case FLAG_RCV:
+        if (byte == A_SENDER) {
+          frame[i++] = byte;
+          state = A_RCV;
+        }
+        else if (byte == FLAG) ;
+        else {
+          state = START_RCV;
+        }
+      break;
+
+      case A_RCV:
+        if (byte != FLAG) {
+          frame[i++] = byte;
+          state = C_RCV;
+        }
+        else {
+          state = FLAG_RCV;
+        }
+      break;
+
+      case C_RCV:
+        if (byte != FLAG) {
+          frame[i++] = byte;
+          state = BCC_OK;
+        }
+        else {
+          state = FLAG_RCV;
+        }
+      break;
+
+      case BCC_OK:
+        if (byte == FLAG) {
+          frame[i++] = byte;
+          state = STOP_RCV;
+        }
+        else {
+          frame[i++] = byte;
+        }
+      break;
+
+      default:
+        break;
+    }
   }
-}
 
   return i;
 }
