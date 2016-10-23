@@ -34,7 +34,6 @@ int main(int argc, char** argv)
 
 
         appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER, "res/pinguim.gif", strlen("res/pinguim.gif"));
-        printf("%s\n","estupidoooo\n" );
         appwrite(app);
         appclose(app);
         return 0;
