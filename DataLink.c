@@ -151,7 +151,7 @@ int llwrite(int fd, char *buffer, int length) {
   static unsigned char S = 0;
   char frame[FRAME_SIZE];
   char SU[COMMAND_LENGTH];
-  int size, r, bytesRead;
+  int size, r, bytesRead, received;
 
   size = buildPacket(frame, buffer, length, BUILD_S_CONTROL(S));
   do {
@@ -172,7 +172,12 @@ int llwrite(int fd, char *buffer, int length) {
     }
 
     disableAlarm();
-  } while (!packetAccepted(SU));
+    received = packetAccepted(SU);
+
+    if(!received){
+      tcflush(fd, TCIOFLUSH);
+    }
+  } while (!received);
 
   S = (S + 1) % 2;
   return size;
@@ -205,6 +210,8 @@ int llread(int fd, char *buffer) {
     validPacket = 0;
     suControl = (BUILD_R_CONTROL(R) ^ C_REJ_SUFFIX);
   }
+
+  tcflush(fd, TCIOFLUSH);
 
   SU[START_FLAG_INDEX] = FLAG;
   SU[A_INDEX] = A_SENDER;
@@ -436,14 +443,22 @@ int receivePacket(int fd, char *frame) {
   int i, flagCount;
 
   flagCount = 0;  i = 0;
-  for (i = 0; flagCount < 2; i++) {
-    read(fd, frame + i, 1);
+  while(1) {
+    read(fd, frame, 1);
+    if (frame[0] == FLAG) {
+      for (i = 1; flagCount < 1; i++) {
 
-    if (frame[i] == FLAG) {
-      printf("%d\n", i);
-      flagCount++;
+        read(fd, frame + i, 1);
+
+        if (frame[i] == FLAG && i != 1) {
+          printf("%d\n", i);
+          flagCount++;
+        }
     }
+
+    break;
   }
+}
 
   return i;
 }
