@@ -125,6 +125,7 @@ int appread(struct Application app){
         for(i = 0; i < nrPackets; i++) {
                 int length = llread(app.filedes, buf);
                 writeToFile(file, buf, length);
+                printf("Received packet #%d.\n", i);
         }
 
         llread(app.filedes, buf);
