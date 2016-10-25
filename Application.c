@@ -155,7 +155,7 @@ int appread(struct Application app){
                 printf("Received packet successfully!\n");
         }
 
-        fprintf(stdout, "Receiving END control packet...\n");
+        fprintf(stdout, "\n\nReceiving END control packet...\n");
         llread(app.filedes, buf);
         fprintf(stdout, "Received.\n");
 
