@@ -12,10 +12,12 @@
 #include "DataLink.h"
 
 
+#define DATA    1
 #define START   2
 #define END     3
-#define T_FILE_SIZE 0
-#define T_FILE_NAME 1
+#define T_FILE_SIZE   0
+#define T_FILE_NAME   1
+#define DATA_HEADER_SIZE  4
 
 
 /* Enums / structs */
@@ -62,6 +64,7 @@ int appopen(struct Application *app, const char *path, int oflag, int status, ..
 int appwrite(struct Application app) {
         struct Packet packet;
         int i, nrPackets, bytesRemaining;
+        char data[LL_INPUT_MAX_SIZE];
 
         if (createControlPacket(app, &packet, START) != 0) {
                 exit(-1);
@@ -73,17 +76,24 @@ int appwrite(struct Application app) {
         nrPackets = ceil((float) app.fileSize / LL_INPUT_MAX_SIZE);
         bytesRemaining = app.fileSize;
 
-
         for (i = 0; i < nrPackets; i++) {
                 int size;
 
-                if (bytesRemaining < LL_INPUT_MAX_SIZE)
+                if (bytesRemaining < LL_INPUT_MAX_SIZE) {
                         size = bytesRemaining;
-                else
-                        size = LL_INPUT_MAX_SIZE; \
+                }
+                else {
+                        size = LL_INPUT_MAX_SIZE;
+                }
+
+                data[0] = DATA;
+                data[1] = i % 256;
+                data[2] = (size >> 8) && 0xFF;
+                data[3] = size & 0xFF;
+                memcpy(&data[4], &app.buffer[i * LL_INPUT_MAX_SIZE], size - DATA_HEADER_SIZE);
 
                 llwrite(app.filedes, &app.buffer[i * LL_INPUT_MAX_SIZE], size);
-                bytesRemaining -= size;
+                bytesRemaining -= (size - DATA_HEADER_SIZE);
         }
 
         if (createControlPacket(app, &packet, END) != 0) {
@@ -124,7 +134,7 @@ int appread(struct Application app){
 
         for(i = 0; i < nrPackets; i++) {
                 int length = llread(app.filedes, buf);
-                writeToFile(file, buf, length);
+                writeToFile(file, &buf[DATA_HEADER_SIZE], length - DATA_HEADER_SIZE);
                 printf("Received packet #%d.\n", i);
         }
 

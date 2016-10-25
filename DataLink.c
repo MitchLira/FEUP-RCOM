@@ -468,6 +468,7 @@ int receivePacket(int fd, char *frame) {
                         else if (byte == FLAG) ;
                         else {
                                 state = START_RCV;
+                                i = 0;
                         }
                         break;
 
@@ -478,6 +479,7 @@ int receivePacket(int fd, char *frame) {
                         }
                         else {
                                 state = FLAG_RCV;
+                                i = 1;
                         }
                         break;
 
@@ -488,6 +490,7 @@ int receivePacket(int fd, char *frame) {
                         }
                         else {
                                 state = FLAG_RCV;
+                                i = 1;
                         }
                         break;
 
