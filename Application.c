@@ -48,10 +48,15 @@ int appopen(struct Application *app, const char *path, int oflag, int status, ..
         if (status == TRANSMITTER) {
                 fileName = va_arg(ap, char *);
                 fileNameLength = va_arg(ap, unsigned int);
+
+                fprintf(stdout, "Connecting to the receiver...\n");
                 r = appopenWriter(app, path, oflag, fileName, fileNameLength);
+                fprintf(stdout, "Connected successfully!\n\n");
         }
         else {
+                fprintf(stdout, "Connecting to the sender...\n");
                 r = appopenReader(app, path, oflag);
+                fprintf(stdout, "Connected successfully!\n\n");
         }
 
         va_end(ap);
@@ -64,38 +69,56 @@ int appwrite(struct Application app) {
         int i, nrPackets, bytesRemaining;
 
         if (createControlPacket(app, &packet, START) != 0) {
+                fprintf(stderr, "Unable to create end control packet.\n");
                 exit(-1);
         }
 
-        llwrite(app.filedes, packet.frame, packet.size);
+        fprintf(stdout, "Sending START control packet...\n");
+        if (llwrite(app.filedes, packet.frame, packet.size) == -1) {
+          fprintf(stderr, "Unable to send START packet.\n");
+          exit(-1);
+        }
+        fprintf(stdout, "Sent successfully.\n");
+
         free(packet.frame);
 
         nrPackets = ceil((float) app.fileSize / LL_INPUT_MAX_SIZE);
         bytesRemaining = app.fileSize;
 
-
         for (i = 0; i < nrPackets; i++) {
-                int size;
+                fprintf(stdout, "\n\nSending packet #%d...\n", i+1);
 
+                int size;
                 if (bytesRemaining < LL_INPUT_MAX_SIZE)
                         size = bytesRemaining;
                 else
-                        size = LL_INPUT_MAX_SIZE; \
+                        size = LL_INPUT_MAX_SIZE;
 
-                llwrite(app.filedes, &app.buffer[i * LL_INPUT_MAX_SIZE], size);
+                if (llwrite(app.filedes, &app.buffer[i * LL_INPUT_MAX_SIZE], size) == -1) {
+                  exit(-1);
+                }
+
                 bytesRemaining -= size;
+
+                fprintf(stdout, "Packet sent successfully!\n");
         }
 
         if (createControlPacket(app, &packet, END) != 0) {
+                fprintf(stderr, "Unable to create end control packet.\n");
                 exit(-1);
         }
 
-        llwrite(app.filedes, packet.frame, packet.size);
+
+        fprintf(stdout, "\n\nSending END control packet...\n");
+        if (llwrite(app.filedes, packet.frame, packet.size) == -1) {
+          fprintf(stderr, "Unable to send END packet.\n");
+          exit(-1);
+        }
+        fprintf(stdout, "Sent successfully.\n");
 
         free(packet.frame);
         free(app.fileName);
         free(app.buffer);
-
         return 0;
 }
 
@@ -107,14 +130,17 @@ int appread(struct Application app){
         unsigned int fileLength;
         int i;
 
+
+        fprintf(stdout, "Receiving START control packet...\n");
         llread(app.filedes, buf);
+        fprintf(stdout, "Received.\n");
 
         memcpy(name, &buf[9], buf[8]);
         name[(int) buf[8]] = '\0';
 
         file = fopen(name, "w");
         if (file == NULL) {
-                fprintf(stderr, "Can't open file to write\n");
+                fprintf(stderr, "Can't open file to write.\n");
                 return -1;
         }
 
@@ -123,17 +149,21 @@ int appread(struct Application app){
         int nrPackets = ceil((float) fileLength / LL_INPUT_MAX_SIZE);
 
         for(i = 0; i < nrPackets; i++) {
+                fprintf(stdout, "\n\nReceiving packet #%d...\n", i+1);
                 int length = llread(app.filedes, buf);
                 writeToFile(file, buf, length);
-                printf("Received packet #%d.\n", i);
+                printf("Received packet successfully!\n");
         }
 
+        fprintf(stdout, "Receiving END control packet...\n");
         llread(app.filedes, buf);
+        fprintf(stdout, "Received.\n");
 
         return 0;
 }
 
 int appclose(struct Application app) {
+        fprintf(stdout, "\nDisconnecting...\n");
         return llclose(app.filedes, app.status);
 }
 
