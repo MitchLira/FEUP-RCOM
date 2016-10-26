@@ -11,6 +11,7 @@
 #include <signal.h>
 #include "DataLink.h"
 #include "Application.h"
+#include "Settings.h"
 
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -23,6 +24,7 @@ volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
+        struct SettingsTransmitter settings;
         struct Application app;
 
         if ( (argc < 2) ||
@@ -32,9 +34,10 @@ int main(int argc, char** argv)
                 exit(1);
         }
 
-
+        settings = loadTransmitterSettings();
+/*
         appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER, "res/pinguim.gif", strlen("res/pinguim.gif"));
         appwrite(app);
-        appclose(app);
+        appclose(app);*/
         return 0;
 }

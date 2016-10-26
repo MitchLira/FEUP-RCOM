@@ -1,16 +1,10 @@
 /*Non-Canonical Input Processing*/
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <termios.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include "DataLink.h"
-#include <math.h>
 #include "Application.h"
+#include "Settings.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -22,6 +16,7 @@ volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
+        struct SettingsReceiver settings;
         struct Application app;
 
         if ( (argc < 2) ||
@@ -31,9 +26,13 @@ int main(int argc, char** argv)
                 exit(1);
         }
 
+        settings = loadReceiverSettings();
+
+        /*
         appopen(&app, argv[1], O_RDWR | O_NOCTTY, RECEIVER);
         appread(app);
         appclose(app);
+        */
 
         return 0;
 }
