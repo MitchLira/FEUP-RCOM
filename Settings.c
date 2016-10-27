@@ -9,14 +9,14 @@
 #define DEFAULT_RETRIES   3
 #define BAUDRATE1200      B1200
 #define BAUDRATE1800      B1800
-#define BAUDRATE2400 B2400
-#define BAUDRATE4800 B4800
-#define BAUDRATE9600 B9600
-#define BAUDRATE19200 B19200
-#define BAUDRATE38400 B38400
-#define BAUDRATE57600 B57600
-#define BAUDRATE115200 B115200
-#define BAUDRATE230400 B230400
+#define BAUDRATE2400      B2400
+#define BAUDRATE4800      B4800
+#define BAUDRATE9600      B9600
+#define BAUDRATE19200     B19200
+#define BAUDRATE38400     B38400
+#define BAUDRATE57600     B57600
+#define BAUDRATE115200    B115200
+#define BAUDRATE230400    B230400
 
 /* Function headers */
 void clean();
@@ -42,6 +42,7 @@ struct SettingsTransmitter loadTransmitterSettings() {
   settings.retries = getRetries();
   printf("Retries: %d\n", settings.retries);
 
+  settings.baudrate = getBaudRate();
   return settings;
 }
 
@@ -101,45 +102,42 @@ int getBaudRate() {
   valid = scanf("%d", &baudrate);
   clean();
 
-  while (valid < 0 || baudrate < 0 || baudrate > 10) {
+  while (valid < 0 || baudrate < 0 || baudrate > 9) {
     printf("Invalid value! Insert a value between 0 and 9: ");
     valid = scanf("%d", &baudrate);
     clean();
-
-    switch (baudrate) {
-      case 0:
-        return BAUDRATE1200;
-      break;
-      case 1:
-        return BAUDRATE1800;
-      break;
-      case 2:
-        return BAUDRATE2400;
-      break;
-      case 3:
-        return BAUDRATE4800;
-      break;
-      case 4:
-        return BAUDRATE9600;
-      break;
-      case 5:
-        return BAUDRATE19200;
-      break;
-      case 6:
-        return BAUDRATE38400;
-      break;
-      case 7:
-        return BAUDRATE57600;
-      break;
-      case 8:
-        return BAUDRATE115200;
-      break;
-      case 9:
-        return BAUDRATE230400;
-      break;
-
-    }
-
+  }
+  switch (baudrate) {
+    case 0:
+      return BAUDRATE1200;
+    break;
+    case 1:
+      return BAUDRATE1800;
+    break;
+    case 2:
+      return BAUDRATE2400;
+    break;
+    case 3:
+      return BAUDRATE4800;
+    break;
+    case 4:
+      return BAUDRATE9600;
+    break;
+    case 5:
+      return BAUDRATE19200;
+    break;
+    case 6:
+      return BAUDRATE38400;
+    break;
+    case 7:
+      return BAUDRATE57600;
+    break;
+    case 8:
+      return BAUDRATE115200;
+    break;
+    case 9:
+      return BAUDRATE230400;
+    break;
 
   }
 
