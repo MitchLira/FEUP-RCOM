@@ -51,7 +51,7 @@ void loadTransmitterSettings() {
 
 void getFileName(char* fileName) {
 
-  printf("Enter the path: ");
+  printf("\nEnter the path: ");
   fgets(fileName, BUFFER_LENGTH, stdin);
   fileName[strcspn(fileName, "\n")] = '\0';
 }
@@ -60,7 +60,7 @@ int getTimeout() {
     int valid;
     int timeout;
 
-    printf("Choose time-out time in seconds (0 - default): ");
+    printf("\nChoose time-out time in seconds (0 - default): ");
     valid = scanf("%d", &timeout);
     clean();
 
@@ -81,7 +81,7 @@ int getRetries(){
   int valid;
   int retries;
 
-  printf("Choose number of retries (0 - default): ");
+  printf("\nChoose number of retries (0 - default): ");
   valid = scanf("%d", &retries);
   clean();
 
@@ -104,14 +104,14 @@ int getBaudRate() {
   int baudrate;
   int valid;
 
-  printf("Choose baudrate:\n");
-  printf("0 - 1200\n1-1800\n2-2400\n3-4800\n4-9600\n5-38400\n6-57600\n7-115200\n");
-  printf("Insert your choice: ");
+  printf("\nChoose baudrate:\n");
+  printf("0 - 1200\n1 - 1800\n2 - 2400\n3 - 4800\n4 - 9600\n5 - 38400\n6 - 57600\n7 - 115200\n");
+  printf("\nInsert your choice: ");
   valid = scanf("%d", &baudrate);
   clean();
 
   while (valid < 0 || baudrate < 0 || baudrate > 7) {
-    printf("Invalid value! Insert a value between 0 and 8: ");
+    printf("Invalid value! Insert a value between 0 and 7: ");
     valid = scanf("%d", &baudrate);
     clean();
   }
