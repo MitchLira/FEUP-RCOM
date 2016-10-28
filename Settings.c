@@ -23,30 +23,35 @@ void clean();
 int getTimeout();
 int getRetries();
 int getBaudRate();
+struct SettingsTransmitter getSettingsTransmitter();
+struct SettingsReceiver getSettingsReceiver();
+int getBaudRateTransmiter(struct SettingsTransmitter settings);
 
-struct SettingsReceiver loadReceiverSettings() {
-  struct SettingsReceiver settings;
+struct SettingsReceiver settingsR;
+struct SettingsTransmitter settingsT;
 
-  settings.timeout = getTimeout();
-  printf("Timeout: %d\n", settings.timeout);
+void loadReceiverSettings() {
 
-  return settings;
+
+  settingsR.timeout = getTimeout();
+  printf("Timeout: %d\n", settingsR.timeout);
+
+  settingsR.baudrate = getBaudRateTransmiter(settingsT);
+
 }
 
-struct SettingsTransmitter loadTransmitterSettings() {
-  struct SettingsTransmitter settings;
+void loadTransmitterSettings() {
 
-  settings.timeout = getTimeout();
-  printf("Timeout: %d\n", settings.timeout);
 
-  settings.retries = getRetries();
-  printf("Retries: %d\n", settings.retries);
+  settingsT.timeout = getTimeout();
+  printf("Timeout: %d\n", settingsT.timeout);
 
-  settings.baudrate = getBaudRate();
-  return settings;
+  settingsT.retries = getRetries();
+  printf("Retries: %d\n", settingsT.retries);
+
+  settingsT.baudrate = getBaudRate();
+
 }
-
-
 
 int getTimeout() {
     int valid;
@@ -138,11 +143,24 @@ int getBaudRate() {
     case 9:
       return BAUDRATE230400;
     break;
-
   }
-
+  
+  return -1;
 }
 
+int getBaudRateTransmiter(struct SettingsTransmitter settings)
+{
+  return settings.baudrate;
+}
+
+struct SettingsTransmitter getSettingsTransmitter()
+{
+  return settingsT;
+}
+struct SettingsReceiver getSettingsReceiver()
+{
+  return settingsR;
+}
 
 void clean() {
   char c;

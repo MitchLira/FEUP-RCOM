@@ -24,7 +24,6 @@ volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
-        struct SettingsTransmitter settings;
         struct Application app;
 
         if ( (argc < 2) ||
@@ -34,10 +33,11 @@ int main(int argc, char** argv)
                 exit(1);
         }
 
-        settings = loadTransmitterSettings();
-/*
+        loadTransmitterSettings();
+
         appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER, "res/pinguim.gif", strlen("res/pinguim.gif"));
         appwrite(app);
-        appclose(app);*/
+        appclose(app);
+        
         return 0;
 }

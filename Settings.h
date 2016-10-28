@@ -3,6 +3,7 @@
 
 struct SettingsReceiver {
   int timeout;
+  int baudrate;
 };
 
 struct SettingsTransmitter {
@@ -11,8 +12,8 @@ struct SettingsTransmitter {
   int baudrate;
 };
 
-struct SettingsReceiver loadReceiverSettings();
-struct SettingsTransmitter loadTransmitterSettings();
+void loadReceiverSettings();
+void loadTransmitterSettings();
 
 
 #endif
