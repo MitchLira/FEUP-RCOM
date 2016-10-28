@@ -77,7 +77,7 @@ int packetAccepted(char *SU);
 
 
 
-int llopen(const char *path, int oflag, int status) {
+int llopen(int oflag, int status) {
         CommandType type;
         struct SettingsTransmitter settingsT;
         struct SettingsReceiver settingsR;
@@ -86,8 +86,15 @@ int llopen(const char *path, int oflag, int status) {
            Open serial port device for reading and writing and not as controlling tty
            because we don't want to get killed if linenoise sends CTRL-C.
          */
-        fd = open(path, oflag);
-        if (fd <0) {perror(path); return -1; }
+        if(status == TRANSMITTER)
+        {
+          fd = open(settingsT.fileName, oflag);
+          if (fd <0) {perror(settingsT.fileName); return -1; }
+        }
+        else{
+          fd = open(settingsR.fileName, oflag);
+          if (fd <0) {perror(settingsR.fileName); return -1; }
+        }
 
         if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
                 perror("tcgetattr");

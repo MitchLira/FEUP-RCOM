@@ -23,13 +23,15 @@ void clean();
 int getTimeout();
 int getRetries();
 int getBaudRate();
-int getBaudRateTransmiter(struct SettingsTransmitter settings);
+void getFileName(char* fileName);
 
 struct SettingsReceiver settingsR;
 struct SettingsTransmitter settingsT;
 
 void loadReceiverSettings() {
 
+  getFileName(settingsR.fileName);
+  
   settingsR.timeout = getTimeout();
 
   settingsR.baudrate = getBaudRate();
@@ -38,6 +40,7 @@ void loadReceiverSettings() {
 
 void loadTransmitterSettings() {
 
+  getFileName(settingsT.fileName);
 
   settingsT.timeout = getTimeout();
 
@@ -45,6 +48,13 @@ void loadTransmitterSettings() {
 
   settingsT.baudrate = getBaudRate();
 
+}
+
+void getFileName(char* fileName) {
+
+  printf("Enter the path: ");
+  fgets(fileName, BUFFER_LENGTH, stdin);
+  fileName[strcspn(fileName, "\n")] = '\0';
 }
 
 int getTimeout() {

@@ -220,7 +220,7 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
         fclose(file);
 
 
-        app->filedes = llopen(path, oflag, TRANSMITTER);
+        app->filedes = llopen(oflag, TRANSMITTER);
         if (app->filedes == -1) {
                 exit(-1);
         }
@@ -230,7 +230,7 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
 
 
 int appopenReader(struct Application *app, const char *path, int oflag) {
-        app->filedes = llopen(path, oflag, RECEIVER);
+        app->filedes = llopen(oflag, RECEIVER);
         if (app->filedes == -1) {
                 exit(-1);
         }
