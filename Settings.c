@@ -12,11 +12,10 @@
 #define BAUDRATE2400      B2400
 #define BAUDRATE4800      B4800
 #define BAUDRATE9600      B9600
-#define BAUDRATE19200     B19200
 #define BAUDRATE38400     B38400
 #define BAUDRATE57600     B57600
 #define BAUDRATE115200    B115200
-#define BAUDRATE230400    B230400
+
 
 /* Function headers */
 void clean();
@@ -31,7 +30,7 @@ struct SettingsTransmitter settingsT;
 void loadReceiverSettings() {
 
   getFileName(settingsR.fileName);
-  
+
   settingsR.timeout = getTimeout();
 
   settingsR.baudrate = getBaudRate();
@@ -106,12 +105,12 @@ int getBaudRate() {
   int valid;
 
   printf("Choose baudrate:\n");
-  printf("0 - 1200\n1-1800\n2-2400\n3-4800\n4-9600\n5-19200\n6-38400\n7-57600\n8-115200\n");
+  printf("0 - 1200\n1-1800\n2-2400\n3-4800\n4-9600\n5-38400\n6-57600\n7-115200\n");
   printf("Insert your choice: ");
   valid = scanf("%d", &baudrate);
   clean();
 
-  while (valid < 0 || baudrate < 0 || baudrate > 8) {
+  while (valid < 0 || baudrate < 0 || baudrate > 7) {
     printf("Invalid value! Insert a value between 0 and 8: ");
     valid = scanf("%d", &baudrate);
     clean();
@@ -133,17 +132,15 @@ int getBaudRate() {
       return BAUDRATE9600;
     break;
     case 5:
-      return BAUDRATE19200;
-    break;
-    case 6:
       return BAUDRATE38400;
     break;
-    case 7:
+    case 6:
       return BAUDRATE57600;
     break;
-    case 8:
+    case 7:
       return BAUDRATE115200;
     break;
+
   }
 
   return -1;

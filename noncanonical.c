@@ -41,10 +41,9 @@ int main(int argc, char** argv)
         appclose(app);
 
         counters = getStatisticsPacket();
+        printf("Frames Received: %d\n", counters.framesReceived);
         printf("Frames Rejected: %d\n", counters.framesRejected);
         printf("Frames Repeated: %d\n", counters.framesRepeated);
-        printf("Frames Received: %d\n", counters.framesReceived);
-        printf("Number of time outs: %d\n", counters.timeOutCounter);
 
 
 
