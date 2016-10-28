@@ -23,15 +23,12 @@ void clean();
 int getTimeout();
 int getRetries();
 int getBaudRate();
-struct SettingsTransmitter getSettingsTransmitter();
-struct SettingsReceiver getSettingsReceiver();
 int getBaudRateTransmiter(struct SettingsTransmitter settings);
 
 struct SettingsReceiver settingsR;
 struct SettingsTransmitter settingsT;
 
 void loadReceiverSettings() {
-
 
   settingsR.timeout = getTimeout();
   printf("Timeout: %d\n", settingsR.timeout);
@@ -144,7 +141,7 @@ int getBaudRate() {
       return BAUDRATE230400;
     break;
   }
-  
+
   return -1;
 }
 

@@ -9,6 +9,7 @@
 #include <string.h>
 #include "DataLink.h"
 #include "Alarm.h"
+#include "Settings.h"
 
 
 /* Definitions */
@@ -78,6 +79,8 @@ int packetAccepted(char *SU);
 
 int llopen(const char *path, int oflag, int status) {
         CommandType type;
+        struct SettingsTransmitter settingsT;
+        struct SettingsReceiver settingsR;
 
         /*
            Open serial port device for reading and writing and not as controlling tty
@@ -92,7 +95,15 @@ int llopen(const char *path, int oflag, int status) {
         }
 
         bzero(&newtio, sizeof(newtio));
-        newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+
+        if (status == TRANSMITTER) {
+          settingsT = getSettingsTransmitter();
+          newtio.c_cflag = settingsT.baudrate | CS8 | CLOCAL | CREAD;
+        }
+        else{
+          settingsR = getSettingsReceiver();
+          newtio.c_cflag = settingsR.baudrate | CS8 | CLOCAL | CREAD;
+        }
         newtio.c_iflag = IGNPAR;
         newtio.c_oflag = 0;
 
@@ -119,9 +130,10 @@ int llopen(const char *path, int oflag, int status) {
                 return -1;
         }
 
-        configAlarm(CONNECT_NR_TRIES, UA_WAIT_TIME);
 
         if (status == TRANSMITTER) {
+                configAlarm(settingsT.retries, settingsT.timeout);
+
                 write(fd, SET_PACKET, COMMAND_LENGTH); // Send SET to receiver
                 setAlarm(resend, (char *) SET_PACKET, COMMAND_LENGTH);
 
@@ -135,6 +147,7 @@ int llopen(const char *path, int oflag, int status) {
 
         }
         else if (status == RECEIVER) {
+                configAlarm(0, settingsR.timeout);
 
                 type = SET;
                 if (receiveCommand(type) != 0) {

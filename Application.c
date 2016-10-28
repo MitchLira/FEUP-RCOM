@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include "Application.h"
 #include "DataLink.h"
+#include "Settings.h"
 
 
 #define START   2

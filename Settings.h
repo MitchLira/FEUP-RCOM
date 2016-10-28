@@ -14,6 +14,8 @@ struct SettingsTransmitter {
 
 void loadReceiverSettings();
 void loadTransmitterSettings();
+struct SettingsTransmitter getSettingsTransmitter();
+struct SettingsReceiver getSettingsReceiver();
 
 
 #endif
