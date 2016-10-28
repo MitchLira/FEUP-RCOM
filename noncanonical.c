@@ -12,6 +12,7 @@
 #include "DataLink.h"
 #include "Application.h"
 #include "Settings.h"
+#include "Statistics.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -24,6 +25,7 @@ volatile int STOP=FALSE;
 int main(int argc, char** argv)
 {
         struct Application app;
+        struct StatisticsPacket counters;
 
         if ( (argc < 2) ||
              ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -37,6 +39,14 @@ int main(int argc, char** argv)
         appopen(&app, argv[1], O_RDWR | O_NOCTTY, RECEIVER);
         appread(app);
         appclose(app);
+
+        counters = getStatisticsPacket();
+        printf("Frames Rejected: %d\n", counters.framesRejected);
+        printf("Frames Repeated: %d\n", counters.framesRepeated);
+        printf("Frames Received: %d\n", counters.framesReceived);
+        printf("Number of time outs: %d\n", counters.timeOutCounter);
+
+
 
         return 0;
 }

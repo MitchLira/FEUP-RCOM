@@ -12,7 +12,6 @@
 #include "DataLink.h"
 #include "Settings.h"
 
-
 #define START   2
 #define END     3
 #define T_FILE_SIZE 0
@@ -38,7 +37,6 @@ void writeToFile(FILE *file, char *buf, int length);
 int appopen(struct Application *app, const char *path, int oflag, int status) {
         int r;
         struct SettingsTransmitter settingsT;
-        struct SettingsReceiver settingsR;
 
         r = 0;
         app->status = status;

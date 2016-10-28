@@ -10,7 +10,7 @@
 #include "DataLink.h"
 #include "Alarm.h"
 #include "Settings.h"
-
+#include "Statistics.h"
 
 /* Definitions */
 #define FLAG          0x7E
@@ -61,7 +61,6 @@ const unsigned char DISC_RECEIVER_PACKET[] = {FLAG, A_RECEIVER, C_DISC, A_RECEIV
 int fd, numberTries = 0;
 struct termios oldtio,newtio;
 
-
 /* Function headers */
 void updateCommandState(CommandState* state, CommandType type, unsigned char byte);
 int needsStuffing(char byte);
@@ -82,6 +81,7 @@ int llopen(const char *path, int oflag, int status) {
         struct SettingsTransmitter settingsT;
         struct SettingsReceiver settingsR;
 
+        setStatistics();
         /*
            Open serial port device for reading and writing and not as controlling tty
            because we don't want to get killed if linenoise sends CTRL-C.
@@ -191,11 +191,13 @@ int llwrite(int fd, char *buffer, int length) {
                 disableAlarm();
                 received = packetAccepted(SU);
 
+
                 if(!received) {
                         tcflush(fd, TCIOFLUSH);
                 }
         } while (!received);
 
+        incFramesTransmitted();
         S = (S + 1) % 2;
         return size;
 }
@@ -218,14 +220,17 @@ int llread(int fd, char *buffer) {
                         validPacket = TRUE;
                         suControl = (BUILD_R_CONTROL(R) ^ C_RR_SUFFIX);
                         R = (R + 1) % 2;
+                        incFramesReceived();
                 }
                 else if (r == 1) {
                         validPacket = FALSE;
                         suControl = (BUILD_R_CONTROL(R) ^ C_RR_SUFFIX);
+                        incFramesRepeated();
                 }
                 else {
                         validPacket = FALSE;
                         suControl = (BUILD_R_CONTROL(R) ^ C_REJ_SUFFIX);
+                        incFramesRejected();
                 }
 
                 SU[START_FLAG_INDEX] = FLAG;
@@ -585,6 +590,7 @@ int receiveCommand(CommandType type) {
 
 void resend(char *buffer, int length) {
         write(fd, buffer, length);
+        incTimeOut();
 }
 
 
