@@ -12,6 +12,7 @@
 #include "DataLink.h"
 #include "Application.h"
 #include "Settings.h"
+#include "Statistics.h"
 
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -25,6 +26,7 @@ volatile int STOP=FALSE;
 int main(int argc, char** argv)
 {
         struct Application app;
+        struct StatisticsPacket counters;
 
         if ( (argc < 2) ||
              ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -38,6 +40,13 @@ int main(int argc, char** argv)
         appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER);
         appwrite(app);
         appclose(app);
+
+        counters = getStatisticsPacket();
+
+        printf("Frames Trasmitted: %d\n", counters.framesTransmitted);
+        printf("Frames Rejected: %d\n", counters.framesRejected);
+        printf("Frames Repeated: %d\n", counters.framesRepeated);
+        printf("Number of time outs: %d\n", counters.timeOutCounter);
 
         return 0;
 }
