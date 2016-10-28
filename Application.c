@@ -69,6 +69,7 @@ int appwrite(struct Application app) {
         struct Packet packet;
         int i, nrPackets, bytesRemaining;
 
+
         if (createControlPacket(app, &packet, START) != 0) {
                 fprintf(stderr, "Unable to create end control packet.\n");
                 exit(-1);
@@ -127,19 +128,19 @@ int appwrite(struct Application app) {
 int appread(struct Application app){
         FILE *file;
         char buf[LL_INPUT_MAX_SIZE];
-        char name[256];
         unsigned int fileLength;
         int i;
+        struct SettingsReceiver settingsR;
+        settingsR = getSettingsReceiver();
 
 
         fprintf(stdout, "Receiving START control packet...\n");
         llread(app.filedes, buf);
         fprintf(stdout, "Received.\n");
 
-        memcpy(name, &buf[9], buf[8]);
-        name[(int) buf[8]] = '\0';
+        memcpy(settingsR.fileName, &buf[9], buf[8]);
 
-        file = fopen(name, "w");
+        file = fopen(settingsR.fileName, "w");
         if (file == NULL) {
                 fprintf(stderr, "Can't open file to write.\n");
                 return -1;
@@ -194,15 +195,18 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
                   const char *fileName, unsigned int fileNameLength) {
         FILE *file;
 
+        struct SettingsReceiver settingsR;
+        settingsR = getSettingsReceiver();
+
         app->fileNameLength = fileNameLength;
         app->fileName = (char *) malloc(sizeof(app->fileNameLength));
         if (app->fileName == NULL) {
                 exit(-1);
         }
 
-        strcpy(app->fileName, fileName);
+        strcpy(app->fileName, settingsR.fileName);
 
-        file = fopen(fileName, "rb");
+        file = fopen(settingsR.fileName, "rb");
         if (file == NULL) {
                 exit(-1);
         }
@@ -220,7 +224,7 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
         fclose(file);
 
 
-        app->filedes = llopen(oflag, TRANSMITTER);
+        app->filedes = llopen(path,oflag, TRANSMITTER);
         if (app->filedes == -1) {
                 exit(-1);
         }
@@ -230,7 +234,7 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
 
 
 int appopenReader(struct Application *app, const char *path, int oflag) {
-        app->filedes = llopen(oflag, RECEIVER);
+        app->filedes = llopen(path,oflag, RECEIVER);
         if (app->filedes == -1) {
                 exit(-1);
         }
