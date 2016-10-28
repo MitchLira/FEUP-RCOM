@@ -31,9 +31,8 @@ struct SettingsTransmitter settingsT;
 void loadReceiverSettings() {
 
   settingsR.timeout = getTimeout();
-  printf("Timeout: %d\n", settingsR.timeout);
 
-  settingsR.baudrate = getBaudRateTransmiter(settingsT);
+  settingsR.baudrate = getBaudRate();
 
 }
 
@@ -41,10 +40,8 @@ void loadTransmitterSettings() {
 
 
   settingsT.timeout = getTimeout();
-  printf("Timeout: %d\n", settingsT.timeout);
 
   settingsT.retries = getRetries();
-  printf("Retries: %d\n", settingsT.retries);
 
   settingsT.baudrate = getBaudRate();
 
@@ -99,13 +96,13 @@ int getBaudRate() {
   int valid;
 
   printf("Choose baudrate:\n");
-  printf("0 - 1200 \n1-1800\n2-2400\n3-4800\n4-9600\n5-19200\n6-38400\n7-57600\n8-115200\n9-230400\n");
+  printf("0 - 1200\n1-1800\n2-2400\n3-4800\n4-9600\n5-19200\n6-38400\n7-57600\n8-115200\n");
   printf("Insert your choice: ");
   valid = scanf("%d", &baudrate);
   clean();
 
-  while (valid < 0 || baudrate < 0 || baudrate > 9) {
-    printf("Invalid value! Insert a value between 0 and 9: ");
+  while (valid < 0 || baudrate < 0 || baudrate > 8) {
+    printf("Invalid value! Insert a value between 0 and 8: ");
     valid = scanf("%d", &baudrate);
     clean();
   }
@@ -137,18 +134,11 @@ int getBaudRate() {
     case 8:
       return BAUDRATE115200;
     break;
-    case 9:
-      return BAUDRATE230400;
-    break;
   }
 
   return -1;
 }
 
-int getBaudRateTransmiter(struct SettingsTransmitter settings)
-{
-  return settings.baudrate;
-}
 
 struct SettingsTransmitter getSettingsTransmitter()
 {
