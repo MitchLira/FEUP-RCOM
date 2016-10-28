@@ -11,8 +11,7 @@ struct Application {
 };
 
 
-int appopen(struct Application *app, const char *path, int oflag, int status, ...
-            /*const char *fileName, unsigned int fileNameLength */);
+int appopen(struct Application *app, const char *path, int oflag, int status);
 int appwrite(struct Application app);
 int appread(struct Application app);
 int appclose(struct Application app);

@@ -34,7 +34,6 @@ int main(int argc, char** argv)
 
         loadReceiverSettings();
 
-
         appopen(&app, argv[1], O_RDWR | O_NOCTTY, RECEIVER);
         appread(app);
         appclose(app);

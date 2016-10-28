@@ -35,9 +35,9 @@ int main(int argc, char** argv)
 
         loadTransmitterSettings();
 
-        appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER, "res/pinguim.gif", strlen("res/pinguim.gif"));
+        appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER);
         appwrite(app);
         appclose(app);
-        
+
         return 0;
 }

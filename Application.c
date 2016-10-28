@@ -35,23 +35,18 @@ void writeToFile(FILE *file, char *buf, int length);
 
 
 
-int appopen(struct Application *app, const char *path, int oflag, int status, ...
-            /*const char *fileName, unsigned int fileNameLength */) {
-        va_list ap;
+int appopen(struct Application *app, const char *path, int oflag, int status) {
         int r;
-        unsigned int fileNameLength;
-        const char *fileName;
+        struct SettingsTransmitter settingsT;
+        struct SettingsReceiver settingsR;
 
-        va_start(ap, status);
         r = 0;
-
         app->status = status;
         if (status == TRANSMITTER) {
-                fileName = va_arg(ap, char *);
-                fileNameLength = va_arg(ap, unsigned int);
+                settingsT = getSettingsTransmitter();
 
                 fprintf(stdout, "Connecting to the receiver...\n");
-                r = appopenWriter(app, path, oflag, fileName, fileNameLength);
+                r = appopenWriter(app, path, oflag, settingsT.fileName, strlen(settingsT.fileName));
                 fprintf(stdout, "Connected successfully!\n\n");
         }
         else {
@@ -60,7 +55,6 @@ int appopen(struct Application *app, const char *path, int oflag, int status, ..
                 fprintf(stdout, "Connected successfully!\n\n");
         }
 
-        va_end(ap);
         return r;
 }
 
@@ -131,14 +125,17 @@ int appread(struct Application app){
         unsigned int fileLength;
         int i;
         struct SettingsReceiver settingsR;
-        settingsR = getSettingsReceiver();
 
+
+        settingsR = getSettingsReceiver();
 
         fprintf(stdout, "Receiving START control packet...\n");
         llread(app.filedes, buf);
         fprintf(stdout, "Received.\n");
 
-        memcpy(settingsR.fileName, &buf[9], buf[8]);
+        if (strcmp(settingsR.fileName, "source") == 0) {
+          memcpy(settingsR.fileName, &buf[9], buf[8]);
+        }
 
         file = fopen(settingsR.fileName, "w");
         if (file == NULL) {
@@ -195,8 +192,6 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
                   const char *fileName, unsigned int fileNameLength) {
         FILE *file;
 
-        struct SettingsReceiver settingsR;
-        settingsR = getSettingsReceiver();
 
         app->fileNameLength = fileNameLength;
         app->fileName = (char *) malloc(sizeof(app->fileNameLength));
@@ -204,10 +199,11 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
                 exit(-1);
         }
 
-        strcpy(app->fileName, settingsR.fileName);
+        strcpy(app->fileName, fileName);
 
-        file = fopen(settingsR.fileName, "rb");
+        file = fopen(fileName, "rb");
         if (file == NULL) {
+                fprintf(stderr, "File \"%s\" doesn't exist!\n", fileName);
                 exit(-1);
         }
 
