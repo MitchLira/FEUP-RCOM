@@ -12,10 +12,13 @@
 #include "DataLink.h"
 #include "Settings.h"
 
+#define DATA    1
 #define START   2
 #define END     3
 #define T_FILE_SIZE 0
 #define T_FILE_NAME 1
+#define DATA_HEADER_SIZE 4
+
 
 
 /* Enums / structs */
@@ -26,6 +29,7 @@ struct Packet {
 
 
 /* Function headers */
+void createDataPacket(char *dst, char *src, int srcLength);
 int createControlPacket(struct Application app, struct Packet *packet, char C_FLAG);
 int appopenWriter(struct Application *app, const char *path, int oflag, const char *fileName, unsigned int fileNameLength);
 int appopenReader(struct Application *app, const char *path, int oflag);
@@ -59,7 +63,8 @@ int appopen(struct Application *app, const char *path, int oflag, int status) {
 
 int appwrite(struct Application app) {
         struct Packet packet;
-        int i, nrPackets, bytesRemaining;
+        int i, nrPackets, bytesRemaining, fileBytesSent;
+        char frame[LL_INPUT_MAX_SIZE];
 
 
         if (createControlPacket(app, &packet, START) != 0) {
@@ -78,23 +83,26 @@ int appwrite(struct Application app) {
 
         nrPackets = ceil((float) app.fileSize / LL_INPUT_MAX_SIZE);
         bytesRemaining = app.fileSize;
+        fileBytesSent = 0;
 
         for (i = 0; i < nrPackets; i++) {
                 fprintf(stdout, "\n\nSending packet #%d...\n", i+1);
 
                 int size;
-                if (bytesRemaining < LL_INPUT_MAX_SIZE)
+                if (bytesRemaining < LL_INPUT_MAX_SIZE - DATA_HEADER_SIZE)
                         size = bytesRemaining;
                 else
-                        size = LL_INPUT_MAX_SIZE;
+                        size = LL_INPUT_MAX_SIZE - DATA_HEADER_SIZE;
 
-                if (llwrite(app.filedes, &app.buffer[i * LL_INPUT_MAX_SIZE], size) == -1) {
+                createDataPacket(frame, &app.buffer[fileBytesSent], size);
+
+                if (llwrite(app.filedes, frame, size + DATA_HEADER_SIZE) == -1) {
                   fprintf(stderr, "Something occured. Unable to send file's info!\n");
                   exit(-1);
                 }
 
                 bytesRemaining -= size;
-
+                fileBytesSent += size;
                 fprintf(stdout, "Packet sent successfully!\n");
         }
 
@@ -154,7 +162,7 @@ int appread(struct Application app){
                 if (length == -1) {
                   exit(-1);
                 }
-                writeToFile(file, buf, length);
+                writeToFile(file, &buf[DATA_HEADER_SIZE], length - DATA_HEADER_SIZE);
                 printf("Received packet successfully!\n");
         }
 
@@ -169,6 +177,18 @@ int appread(struct Application app){
 
 int appclose(struct Application app) {
         return llclose(app.filedes, app.status);
+}
+
+
+
+void createDataPacket(char *dst, char *src, int srcLength) {
+  static unsigned char n = 0;
+
+  dst[0] = DATA;
+  dst[1] = n++;
+  dst[2] = (srcLength >> 8) & 0xFF;
+  dst[3] = srcLength & 0xFF;
+  memcpy(&dst[DATA_HEADER_SIZE], src, srcLength);
 }
 
 

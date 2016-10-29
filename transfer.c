@@ -20,6 +20,7 @@ int main(int argc, char** argv)
 {
         struct Application app;
         struct StatisticsPacket counters;
+        int status;
 
         if ( (argc < 3) ||
              ( (strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -30,14 +31,14 @@ int main(int argc, char** argv)
                 exit(1);
         }
 
-
-        if(strcmp("receiver", argv[2])==0) {
+        if (strcmp("receiver", argv[2]) == 0) {
+          status = RECEIVER;
           loadReceiverSettings();
           appopen(&app, argv[1], O_RDWR | O_NOCTTY, RECEIVER);
           appread(app);
-
         }
         else {
+          status = TRANSMITTER;
           loadTransmitterSettings();
           appopen(&app, argv[1], O_RDWR | O_NOCTTY, TRANSMITTER);
           appwrite(app);
@@ -46,11 +47,21 @@ int main(int argc, char** argv)
         appclose(app);
 
         counters = getStatisticsPacket();
-        printf("Frames Received: %d\n", counters.framesReceived);
-        printf("Frames Rejected: %d\n", counters.framesRejected);
-        printf("Frames Repeated: %d\n", counters.framesRepeated);
 
+        if(status == RECEIVER) {
 
+          printf("Frames Received: %d\n", counters.framesReceived);
+          printf("Frames Rejected: %d\n", counters.framesRejected);
+          printf("Frames Repeated: %d\n", counters.framesRepeated);
+        }
+        else {
 
+          printf("Frames Trasmitted: %d\n", counters.framesTransmitted);
+          printf("Frames Rejected: %d\n", counters.framesRejected);
+          printf("Frames Repeated: %d\n", counters.framesRepeated);
+          printf("Number of time outs: %d\n", counters.timeOutCounter);
+
+        }
+        
         return 0;
 }
