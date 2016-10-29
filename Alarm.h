@@ -3,7 +3,7 @@
 
 void handleAlarm();
 void configAlarm(unsigned int nrTries, unsigned int waitPeriod);
-void setAlarm(void (*func)(char *), char* buffer, int length);
+void setAlarm(void (*func)(char *, unsigned int), char *buffer, unsigned int length);
 void disableAlarm();
 int connectionTimedOut();
 

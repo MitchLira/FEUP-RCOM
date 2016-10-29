@@ -10,12 +10,16 @@
 #include <unistd.h>
 #include "Application.h"
 #include "DataLink.h"
+#include "Settings.h"
 
+#define DATA             1
+#define START            2
+#define END              3
+#define T_FILE_SIZE      0
+#define T_FILE_NAME      1
+#define DATA_HEADER_SIZE 4
+#define MAX_DATA_SIZE    (LL_INPUT_MAX_SIZE - DATA_HEADER_SIZE)
 
-#define START   2
-#define END     3
-#define T_FILE_SIZE 0
-#define T_FILE_NAME 1
 
 
 /* Enums / structs */
@@ -26,6 +30,7 @@ struct Packet {
 
 
 /* Function headers */
+void createDataPacket(char *dst, char *src, int srcLength);
 int createControlPacket(struct Application app, struct Packet *packet, char C_FLAG);
 int appopenWriter(struct Application *app, const char *path, int oflag, const char *fileName, unsigned int fileNameLength);
 int appopenReader(struct Application *app, const char *path, int oflag);
@@ -34,23 +39,17 @@ void writeToFile(FILE *file, char *buf, int length);
 
 
 
-int appopen(struct Application *app, const char *path, int oflag, int status, ...
-            /*const char *fileName, unsigned int fileNameLength */) {
-        va_list ap;
+int appopen(struct Application *app, const char *path, int oflag, int status) {
         int r;
-        unsigned int fileNameLength;
-        const char *fileName;
+        struct SettingsTransmitter settingsT;
 
-        va_start(ap, status);
         r = 0;
-
         app->status = status;
         if (status == TRANSMITTER) {
-                fileName = va_arg(ap, char *);
-                fileNameLength = va_arg(ap, unsigned int);
+                settingsT = getSettingsTransmitter();
 
                 fprintf(stdout, "Connecting to the receiver...\n");
-                r = appopenWriter(app, path, oflag, fileName, fileNameLength);
+                r = appopenWriter(app, path, oflag, settingsT.fileName, strlen(settingsT.fileName));
                 fprintf(stdout, "Connected successfully!\n\n");
         }
         else {
@@ -59,14 +58,15 @@ int appopen(struct Application *app, const char *path, int oflag, int status, ..
                 fprintf(stdout, "Connected successfully!\n\n");
         }
 
-        va_end(ap);
         return r;
 }
 
 
 int appwrite(struct Application app) {
         struct Packet packet;
-        int i, nrPackets, bytesRemaining;
+        int i, nrPackets, bytesRemaining, fileBytesSent;
+        char frame[LL_INPUT_MAX_SIZE];
+
 
         if (createControlPacket(app, &packet, START) != 0) {
                 fprintf(stderr, "Unable to create end control packet.\n");
@@ -82,24 +82,28 @@ int appwrite(struct Application app) {
 
         free(packet.frame);
 
-        nrPackets = ceil((float) app.fileSize / LL_INPUT_MAX_SIZE);
+        nrPackets = ceil((float) app.fileSize / MAX_DATA_SIZE);
         bytesRemaining = app.fileSize;
+        fileBytesSent = 0;
 
         for (i = 0; i < nrPackets; i++) {
                 fprintf(stdout, "\n\nSending packet #%d...\n", i+1);
-
                 int size;
-                if (bytesRemaining < LL_INPUT_MAX_SIZE)
+
+                if (bytesRemaining < MAX_DATA_SIZE)
                         size = bytesRemaining;
                 else
-                        size = LL_INPUT_MAX_SIZE;
+                        size = MAX_DATA_SIZE;
 
-                if (llwrite(app.filedes, &app.buffer[i * LL_INPUT_MAX_SIZE], size) == -1) {
+                createDataPacket(frame, &app.buffer[fileBytesSent], size);
+
+                if (llwrite(app.filedes, frame, size + DATA_HEADER_SIZE) == -1) {
+                  fprintf(stderr, "Something occured. Unable to send file's info!\n");
                   exit(-1);
                 }
 
                 bytesRemaining -= size;
-
+                fileBytesSent += size;
                 fprintf(stdout, "Packet sent successfully!\n");
         }
 
@@ -126,45 +130,66 @@ int appwrite(struct Application app) {
 int appread(struct Application app){
         FILE *file;
         char buf[LL_INPUT_MAX_SIZE];
-        char name[256];
         unsigned int fileLength;
         int i;
+        struct SettingsReceiver settingsR;
 
+
+        settingsR = getSettingsReceiver();
 
         fprintf(stdout, "Receiving START control packet...\n");
-        llread(app.filedes, buf);
+        if (llread(app.filedes, buf) == -1) {
+          exit(-1);
+        }
         fprintf(stdout, "Received.\n");
 
-        memcpy(name, &buf[9], buf[8]);
-        name[(int) buf[8]] = '\0';
+        if (strcmp(settingsR.fileName, "source") == 0) {
+          memcpy(settingsR.fileName, &buf[9], buf[8]);
+        }
 
-        file = fopen(name, "w");
+        file = fopen(settingsR.fileName, "w");
         if (file == NULL) {
-                fprintf(stderr, "Can't open file to write.\n");
+                fprintf(stdout, "Can't open file to write.\n");
                 return -1;
         }
 
         memcpy(&fileLength, &buf[3], buf[2]);
 
-        int nrPackets = ceil((float) fileLength / LL_INPUT_MAX_SIZE);
+        int nrPackets = ceil((float) fileLength / MAX_DATA_SIZE);
 
         for(i = 0; i < nrPackets; i++) {
                 fprintf(stdout, "\n\nReceiving packet #%d...\n", i+1);
                 int length = llread(app.filedes, buf);
-                writeToFile(file, buf, length);
+                if (length == -1) {
+                  exit(-1);
+                }
+                writeToFile(file, &buf[DATA_HEADER_SIZE], length - DATA_HEADER_SIZE);
                 printf("Received packet successfully!\n");
         }
 
-        fprintf(stdout, "Receiving END control packet...\n");
-        llread(app.filedes, buf);
+        fprintf(stdout, "\n\nReceiving END control packet...\n");
+        if (llread(app.filedes, buf) == -1) {
+          exit(-1);
+        }
         fprintf(stdout, "Received.\n");
 
         return 0;
 }
 
 int appclose(struct Application app) {
-        fprintf(stdout, "\nDisconnecting...\n");
         return llclose(app.filedes, app.status);
+}
+
+
+
+void createDataPacket(char *dst, char *src, int srcLength) {
+  static unsigned char n = 0;
+
+  dst[0] = DATA;
+  dst[1] = n++;
+  dst[2] = (srcLength >> 8) & 0xFF;
+  dst[3] = srcLength & 0xFF;
+  memcpy(&dst[DATA_HEADER_SIZE], src, srcLength);
 }
 
 
@@ -193,6 +218,7 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
                   const char *fileName, unsigned int fileNameLength) {
         FILE *file;
 
+
         app->fileNameLength = fileNameLength;
         app->fileName = (char *) malloc(sizeof(app->fileNameLength));
         if (app->fileName == NULL) {
@@ -203,6 +229,7 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
 
         file = fopen(fileName, "rb");
         if (file == NULL) {
+                fprintf(stderr, "File \"%s\" doesn't exist!\n", fileName);
                 exit(-1);
         }
 
@@ -219,7 +246,7 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
         fclose(file);
 
 
-        app->filedes = llopen(path, oflag, TRANSMITTER);
+        app->filedes = llopen(path,oflag, TRANSMITTER);
         if (app->filedes == -1) {
                 exit(-1);
         }
@@ -229,7 +256,7 @@ int appopenWriter(struct Application *app, const char *path, int oflag,
 
 
 int appopenReader(struct Application *app, const char *path, int oflag) {
-        app->filedes = llopen(path, oflag, RECEIVER);
+        app->filedes = llopen(path,oflag, RECEIVER);
         if (app->filedes == -1) {
                 exit(-1);
         }
