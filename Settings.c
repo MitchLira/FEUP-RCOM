@@ -5,7 +5,8 @@
 #include "Settings.h"
 
 #define BUFFER_SIZE       256
-#define DEFAULT_TIMEOUT   3
+#define DEFAULT_TIMEOUT_SENDER   3
+#define DEFAULT_TIMEOUT_RECEIVER 10
 #define DEFAULT_RETRIES   3
 #define BAUDRATE1200      B1200
 #define BAUDRATE1800      B1800
@@ -19,7 +20,7 @@
 
 /* Function headers */
 void clean();
-int getTimeout();
+int getTimeout(int defaultValue);
 int getRetries();
 int getBaudRate();
 void getFileName(char* fileName);
@@ -31,7 +32,7 @@ void loadReceiverSettings() {
 
   getFileName(settingsR.fileName);
 
-  settingsR.timeout = getTimeout();
+  settingsR.timeout = getTimeout(DEFAULT_TIMEOUT_RECEIVER);
 
   settingsR.baudrate = getBaudRate();
 
@@ -41,7 +42,7 @@ void loadTransmitterSettings() {
 
   getFileName(settingsT.fileName);
 
-  settingsT.timeout = getTimeout();
+  settingsT.timeout = getTimeout(DEFAULT_TIMEOUT_SENDER);
 
   settingsT.retries = getRetries();
 
@@ -56,7 +57,7 @@ void getFileName(char* fileName) {
   fileName[strcspn(fileName, "\n")] = '\0';
 }
 
-int getTimeout() {
+int getTimeout(int defaultValue) {
     int valid;
     int timeout;
 
@@ -66,7 +67,7 @@ int getTimeout() {
 
     while (valid < 0 || timeout < 2 || timeout > 10) {
       if (timeout == 0) {
-        return DEFAULT_TIMEOUT;
+        return defaultValue;
       }
 
       printf("Invalid value! Insert a value between 2 and 10: ");

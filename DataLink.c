@@ -71,7 +71,8 @@ int receivePacket(int fd, char *frame);
 int stripAndValidate(char *dst, char *src, int length, unsigned char R);
 char *receiveSU();
 int receiveCommand(CommandType type);
-void resend();
+void resend(char *buffer, unsigned int length);
+void cantConnect(char *buffer, unsigned int length);
 int packetAccepted(char *SU);
 
 
@@ -100,26 +101,27 @@ int llopen(const char *path, int oflag, int status) {
           settingsT = getSettingsTransmitter();
           newtio.c_cflag = settingsT.baudrate | CS8 | CLOCAL | CREAD;
         }
-        else{
+        else {
           settingsR = getSettingsReceiver();
           newtio.c_cflag = settingsR.baudrate | CS8 | CLOCAL | CREAD;
         }
+
         newtio.c_iflag = IGNPAR;
         newtio.c_oflag = 0;
 
         /* set input mode (non-canonical, no echo,...) */
         newtio.c_lflag = 0;
 
-        if (status == TRANSMITTER) {
+        //if (status == TRANSMITTER) {
                 /* If MIN = 0 and TIME > 0, the read will be satisfied if a single
                    character is read, or TIME is exceeded (t = TIME * 0.1 s) */
-                newtio.c_cc[VTIME]    = 10;
-                newtio.c_cc[VMIN]     = 0;
-        }
+        newtio.c_cc[VTIME]    = 10;
+        newtio.c_cc[VMIN]     = 0;
+      /*  }
         else if (status == RECEIVER) {
                 newtio.c_cc[VTIME]    = 0;
                 newtio.c_cc[VMIN]     = 1;
-        }
+        }*/
 
 
 
@@ -135,25 +137,25 @@ int llopen(const char *path, int oflag, int status) {
                 configAlarm(settingsT.retries, settingsT.timeout);
 
                 write(fd, SET_PACKET, COMMAND_LENGTH); // Send SET to receiver
-                setAlarm(resend, (char *) SET_PACKET, COMMAND_LENGTH);
 
+                setAlarm(resend, (char *) SET_PACKET, COMMAND_LENGTH);
                 type = UA_SENDER;
                 if (receiveCommand(type) != 0) {
                         fprintf(stderr, "Can't connect to the receiver. Please try again later.\n");
                         return -1;
                 }
-
                 disableAlarm();
-
         }
         else if (status == RECEIVER) {
                 configAlarm(0, settingsR.timeout);
 
+                setAlarm(cantConnect, "", 0);
                 type = SET;
                 if (receiveCommand(type) != 0) {
                         fprintf(stderr, "Can't connect to the sender. Please try again later.\n");
                         return -1;
                 }
+                disableAlarm();
 
                 write(fd, UA_SENDER_PACKET, COMMAND_LENGTH);
         }
@@ -213,6 +215,10 @@ int llread(int fd, char *buffer) {
 
         do {
                 stuffedSize = receivePacket(fd, frame);
+                if (stuffedSize == -1) {
+                  exit(-1);
+                }
+
                 frameSize = destuff(frame, frame, stuffedSize);
 
                 r = stripAndValidate(buffer, frame, frameSize, R);
@@ -249,33 +255,41 @@ int llread(int fd, char *buffer) {
 int llclose(int fd, int status) {
         CommandType type;
 
+        fprintf(stdout, "\nDisconnecting...\n");
         if (status == TRANSMITTER) {
                 write(fd, DISC_SENDER_PACKET, COMMAND_LENGTH);
 
+                setAlarm(resend, (char *) DISC_SENDER_PACKET, COMMAND_LENGTH);
                 type = DISC_RECEIVER;
                 if (receiveCommand(type) != 0) {
                         fprintf(stderr, "Can't connect to the receiver. Please try again later.\n");
                         return -1;
                 }
+                disableAlarm();
 
                 write(fd, UA_RECEIVER_PACKET, COMMAND_LENGTH);
                 sleep(1);
         }
         else if (status == RECEIVER) {
+                setAlarm(cantConnect, "", 0);
                 type = DISC_SENDER;
                 if (receiveCommand(type) != 0) {
                         fprintf(stderr, "Can't connect to the sender. Please try again later.\n");
                         return -1;
                 }
+                disableAlarm();
 
                 write(fd, DISC_RECEIVER_PACKET, COMMAND_LENGTH);
 
+                setAlarm(cantConnect, "", 0);
                 type = UA_RECEIVER;
                 if (receiveCommand(type) != 0) {
                         fprintf(stderr, "Can't connect to the sender. Please try again later.\n");
                         return -1;
                 }
+                disableAlarm();
         }
+        fprintf(stdout, "Disconnected successfully!\n\n");
 
 
         if (tcsetattr(fd,TCSANOW,&oldtio) == -1) {
@@ -460,15 +474,24 @@ int buildPacket(char *dst, char *src, int length, char controlByte) {
 
 
 int receivePacket(int fd, char *frame) {
-        int i;
+        int i, r;
         unsigned char byte;
         CommandState state;
 
         i = 0;
         state = START_RCV;
 
+        setAlarm(cantConnect, "", 0);
         while (state != STOP_RCV) {
-                read(fd, &byte, 1);
+                r = read(fd, &byte, 1);
+                if (r != 1) {
+                 if (connectionTimedOut()) {
+                   fprintf(stderr, "Unable to receive packet. Please try again later.\n");
+                   exit(-1);
+                  }
+                  else continue;
+                }
+
 
                 switch(state) {
                 case START_RCV:
@@ -524,6 +547,7 @@ int receivePacket(int fd, char *frame) {
                 }
         }
 
+        disableAlarm();
         return i;
 }
 
@@ -588,9 +612,14 @@ int receiveCommand(CommandType type) {
 }
 
 
-void resend(char *buffer, int length) {
+void resend(char *buffer, unsigned int length) {
         write(fd, buffer, length);
         incTimeOut();
+}
+
+
+void cantConnect(char *buffer, unsigned int length) {
+  incTimeOut();
 }
 
 

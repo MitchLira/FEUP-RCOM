@@ -89,6 +89,7 @@ int appwrite(struct Application app) {
                         size = LL_INPUT_MAX_SIZE;
 
                 if (llwrite(app.filedes, &app.buffer[i * LL_INPUT_MAX_SIZE], size) == -1) {
+                  fprintf(stderr, "Something occured. Unable to send file's info!\n");
                   exit(-1);
                 }
 
@@ -128,7 +129,9 @@ int appread(struct Application app){
         settingsR = getSettingsReceiver();
 
         fprintf(stdout, "Receiving START control packet...\n");
-        llread(app.filedes, buf);
+        if (llread(app.filedes, buf) == -1) {
+          exit(-1);
+        }
         fprintf(stdout, "Received.\n");
 
         if (strcmp(settingsR.fileName, "source") == 0) {
@@ -137,7 +140,7 @@ int appread(struct Application app){
 
         file = fopen(settingsR.fileName, "w");
         if (file == NULL) {
-                fprintf(stderr, "Can't open file to write.\n");
+                fprintf(stdout, "Can't open file to write.\n");
                 return -1;
         }
 
@@ -148,19 +151,23 @@ int appread(struct Application app){
         for(i = 0; i < nrPackets; i++) {
                 fprintf(stdout, "\n\nReceiving packet #%d...\n", i+1);
                 int length = llread(app.filedes, buf);
+                if (length == -1) {
+                  exit(-1);
+                }
                 writeToFile(file, buf, length);
                 printf("Received packet successfully!\n");
         }
 
         fprintf(stdout, "\n\nReceiving END control packet...\n");
-        llread(app.filedes, buf);
+        if (llread(app.filedes, buf) == -1) {
+          exit(-1);
+        }
         fprintf(stdout, "Received.\n");
 
         return 0;
 }
 
 int appclose(struct Application app) {
-        fprintf(stdout, "\nDisconnecting...\n");
         return llclose(app.filedes, app.status);
 }
 
