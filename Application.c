@@ -12,12 +12,13 @@
 #include "DataLink.h"
 #include "Settings.h"
 
-#define DATA    1
-#define START   2
-#define END     3
-#define T_FILE_SIZE 0
-#define T_FILE_NAME 1
+#define DATA             1
+#define START            2
+#define END              3
+#define T_FILE_SIZE      0
+#define T_FILE_NAME      1
 #define DATA_HEADER_SIZE 4
+#define MAX_DATA_SIZE    (LL_INPUT_MAX_SIZE - DATA_HEADER_SIZE)
 
 
 
@@ -81,18 +82,18 @@ int appwrite(struct Application app) {
 
         free(packet.frame);
 
-        nrPackets = ceil((float) app.fileSize / LL_INPUT_MAX_SIZE);
+        nrPackets = ceil((float) app.fileSize / MAX_DATA_SIZE);
         bytesRemaining = app.fileSize;
         fileBytesSent = 0;
 
         for (i = 0; i < nrPackets; i++) {
                 fprintf(stdout, "\n\nSending packet #%d...\n", i+1);
-
                 int size;
-                if (bytesRemaining < LL_INPUT_MAX_SIZE - DATA_HEADER_SIZE)
+
+                if (bytesRemaining < MAX_DATA_SIZE)
                         size = bytesRemaining;
                 else
-                        size = LL_INPUT_MAX_SIZE - DATA_HEADER_SIZE;
+                        size = MAX_DATA_SIZE;
 
                 createDataPacket(frame, &app.buffer[fileBytesSent], size);
 
@@ -154,7 +155,7 @@ int appread(struct Application app){
 
         memcpy(&fileLength, &buf[3], buf[2]);
 
-        int nrPackets = ceil((float) fileLength / LL_INPUT_MAX_SIZE);
+        int nrPackets = ceil((float) fileLength / MAX_DATA_SIZE);
 
         for(i = 0; i < nrPackets; i++) {
                 fprintf(stdout, "\n\nReceiving packet #%d...\n", i+1);
