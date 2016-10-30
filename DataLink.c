@@ -112,18 +112,11 @@ int llopen(const char *path, int oflag, int status) {
         /* set input mode (non-canonical, no echo,...) */
         newtio.c_lflag = 0;
 
-        //if (status == TRANSMITTER) {
-                /* If MIN = 0 and TIME > 0, the read will be satisfied if a single
-                   character is read, or TIME is exceeded (t = TIME * 0.1 s) */
+       
+        /* If MIN = 0 and TIME > 0, the read will be satisfied if a single
+           character is read, or TIME is exceeded (t = TIME * 0.1 s) */
         newtio.c_cc[VTIME]    = 10;
         newtio.c_cc[VMIN]     = 0;
-      /*  }
-        else if (status == RECEIVER) {
-                newtio.c_cc[VTIME]    = 0;
-                newtio.c_cc[VMIN]     = 1;
-        }*/
-
-
 
         tcflush(fd, TCIOFLUSH);
 
