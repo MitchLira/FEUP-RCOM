@@ -98,7 +98,6 @@ int appwrite(struct Application app) {
                 createDataPacket(frame, &app.buffer[fileBytesSent], size);
 
                 if (llwrite(app.filedes, frame, size + DATA_HEADER_SIZE) == -1) {
-                  fprintf(stderr, "Something occured. Unable to send file's info!\n");
                   exit(-1);
                 }
 
