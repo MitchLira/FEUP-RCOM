@@ -182,6 +182,7 @@ int llwrite(int fd, char *buffer, int length) {
                         r = read(fd, SU + bytesRead, 1);
 
                         if (connectionTimedOut()) {
+                        		fprintf(stderr, "Something occured. Unable to send file's info!\n");
                                 exit(-1);
                         }
 

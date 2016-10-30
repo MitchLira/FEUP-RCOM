@@ -57,10 +57,7 @@ int main(int argc, char** argv)
         else {
 
           printf("Frames Trasmitted: %d\n", counters.framesTransmitted);
-          printf("Frames Rejected: %d\n", counters.framesRejected);
-          printf("Frames Repeated: %d\n", counters.framesRepeated);
           printf("Number of time outs: %d\n", counters.timeOutCounter);
-
         }
         
         return 0;
