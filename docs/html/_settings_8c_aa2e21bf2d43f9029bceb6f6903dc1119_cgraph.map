@@ -1,0 +1,7 @@
+<map id="loadTransmitterSettings" name="loadTransmitterSettings">
+<area shape="rect" id="node2" href="$_settings_8c.html#a576493a28c55ba45d32a940dc6e61cdc" title="getFileName" alt="" coords="215,5,311,32"/>
+<area shape="rect" id="node3" href="$_settings_8c.html#a97b05e0fea59fbb1237cf5d494776888" title="getTimeout" alt="" coords="219,56,306,83"/>
+<area shape="rect" id="node5" href="$_settings_8c.html#a1845e369838acbe1bb9791ef32c17cac" title="getRetries" alt="" coords="221,107,304,133"/>
+<area shape="rect" id="node6" href="$_settings_8c.html#afeaaa47c5a8c3fb7ba04039ff4c03a82" title="getBaudRate" alt="" coords="213,157,312,184"/>
+<area shape="rect" id="node4" href="$_settings_8c.html#a2bbe646c052baf99f04a367ef6031d74" title="clean" alt="" coords="360,107,413,133"/>
+</map>

@@ -1,0 +1,8 @@
+<map id="clean" name="clean">
+<area shape="rect" id="node2" href="$_settings_8c.html#a97b05e0fea59fbb1237cf5d494776888" title="getTimeout" alt="" coords="113,56,199,83"/>
+<area shape="rect" id="node6" href="$_settings_8c.html#a1845e369838acbe1bb9791ef32c17cac" title="getRetries" alt="" coords="115,107,197,133"/>
+<area shape="rect" id="node7" href="$_settings_8c.html#afeaaa47c5a8c3fb7ba04039ff4c03a82" title="getBaudRate" alt="" coords="107,5,205,32"/>
+<area shape="rect" id="node3" href="$_settings_8h.html#a8778547f6d6dacb1245a6e5fb524c124" title="loadReceiverSettings" alt="" coords="260,5,407,32"/>
+<area shape="rect" id="node5" href="$_settings_8h.html#aa2e21bf2d43f9029bceb6f6903dc1119" title="loadTransmitterSettings" alt="" coords="253,56,413,83"/>
+<area shape="rect" id="node4" href="$transfer_8c.html#a3c04138a5bfe5d72780bb7e82a18e627" title="main" alt="" coords="461,31,512,57"/>
+</map>
