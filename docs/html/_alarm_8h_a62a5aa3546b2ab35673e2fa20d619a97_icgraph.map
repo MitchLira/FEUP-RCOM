@@ -1,0 +1,8 @@
+<map id="handleAlarm" name="handleAlarm">
+<area shape="rect" id="node2" href="$_alarm_8h.html#aa8290874809514c0b6da78fedff0782c" title="configAlarm" alt="" coords="148,31,239,57"/>
+<area shape="rect" id="node3" href="$_data_link_8h.html#a0ff22eb601eda1fd8ab4eca8f2d75798" title="llopen" alt="" coords="287,31,343,57"/>
+<area shape="rect" id="node4" href="$_application_8c.html#a05ab36a4520dd2777a1869b21014f999" title="appopenWriter" alt="" coords="394,5,501,32"/>
+<area shape="rect" id="node7" href="$_application_8c.html#adffdf31dd414fc8bee219df976a3239c" title="appopenReader" alt="" coords="391,56,504,83"/>
+<area shape="rect" id="node5" href="$_application_8h.html#a05fcd9d9f1444d2407a26c1b62588814" title="appopen" alt="" coords="552,31,623,57"/>
+<area shape="rect" id="node6" href="$transfer_8c.html#a3c04138a5bfe5d72780bb7e82a18e627" title="main" alt="" coords="671,31,721,57"/>
+</map>
