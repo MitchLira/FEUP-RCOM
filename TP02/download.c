@@ -30,6 +30,7 @@ typedef struct {
     String password;
     String hostname;
     String path;
+    String filename;
 } ClientInfo;
 
 
@@ -44,13 +45,13 @@ const String NULL_STR = { "", 0 };
 char* getIP(char *hostname);
 int initTCP(char *address, ui port);
 int receiveFromServer(int sockfd, char *msg, ui size);
-void ftp_login(int sockfd, String username, String password);
+int ftp_login(int sockfd, String username, String password);
 ui ftp_passive_mode(int sockfd, char *address);
 int ftp_change_path(int sockfd, String path);
 int ftp_download(int sockfd, ClientInfo info);
 String buildMessage(String prefix, String value);
-ClientInfo parseURL(char *url);
-void readData(int datafd);
+int parseURL(ClientInfo *info, char *url);
+int readData(int datafd, String filename);
 
 
 int main(int argc, char** argv) {
@@ -59,35 +60,39 @@ int main(int argc, char** argv) {
     int sockfd;
     ClientInfo info;
 
-    info = parseURL(argv[1]);
-    printf("\n\n");
+    if (parseURL(&info, argv[1]) < 0) {
+        exit(-1);
+    }
+
+    printf("\n");
     printf("User - %s\n", info.user.string);
     printf("Password - %s\n", info.password.string);
     printf("Hostname - %s\n", info.hostname.string);
     printf("Url-path - %s\n", info.path.string);
-
+    printf("Filename - %s\n", info.filename.string);
 
 
     if ( (address = getIP(info.hostname.string)) == NULL ) {
         exit(-1);
     }
 
-    printf("\n%s = %s.\n", info.hostname.string, address);
+    printf("\n%s's address = %s.\n\n", info.hostname.string, address);
 
-   if ( (sockfd = initTCP(address, FTP_PORT)) == -1) {
+    printf("Connecting to server...\n");
+    if ( (sockfd = initTCP(address, FTP_PORT)) == -1) {
         exit(-2);
     }
 
-    printf("Connected to %s.\n", info.hostname.string);
+    if (receiveFromServer(sockfd, response, BUF_SIZE) < 0) {
+        exit(-1);
+    } 
+    printf("%s\n", response);
 
+    if (ftp_login(sockfd, info.user, info.password)) {
+        exit(-1);
+    }
 
-    receiveFromServer(sockfd, response, BUF_SIZE);
-    printf("\n%s", response);
-
-    ftp_login(sockfd, info.user, info.password);
-    ftp_download(sockfd, info);
-
-    return 0;
+    return ftp_download(sockfd, info);
 }
 
 
@@ -137,32 +142,44 @@ int receiveFromServer(int sockfd, char *msg, ui size) {
     if (bytes != size) {
         msg[bytes] = '\0';
     }
+    else if (bytes == -1) {
+        perror("recv");
+    }
 
     return bytes;
 }
 
 
 
-void ftp_login(int sockfd, String username, String password) {
+int ftp_login(int sockfd, String username, String password) {
     char response[BUF_SIZE];
 
     String user = buildMessage(USER_PREFIX, username);
 
+    printf("Sending user...\n");
     if (write(sockfd, user.string, user.length) < 0) {
+        perror("sending user");
         exit(-1);
     }
 
-	  receiveFromServer(sockfd, response, BUF_SIZE);
-    printf("\n%s", response);
+	if (receiveFromServer(sockfd, response, BUF_SIZE) < 0) {
+        exit(-1);
+    }
+    printf("%s\n", response);
+
 
     String pass = buildMessage(PASS_PREFIX, password);
 
+    printf("Sending password...\n");
     if (write(sockfd, pass.string, pass.length) < 0) {
+        perror("sending password");
         exit(-1);
     }
 
     receiveFromServer(sockfd, response, BUF_SIZE);
-    printf("\n%s", response);
+    printf("%s\n", response);
+
+    return 0;
 }
 
 
@@ -172,17 +189,20 @@ ui ftp_passive_mode(int sockfd, char *address) {
     int p1, p2;
     ui port;
 
+    printf("Entering passive mode...\n");
     String pasv = buildMessage(PASV_PREFIX, NULL_STR);
 
     if (write(sockfd, pasv.string, pasv.length) < 0) {
-        exit(-1);
+        perror("passive mode");
+        exit(0);
     }
 
-    receiveFromServer(sockfd, response, BUF_SIZE);
-    printf("\n%s", response);
+    if (receiveFromServer(sockfd, response, BUF_SIZE) < 0) {
+        exit(0);
+    }
+    printf("%s", response);
 
     sscanf(response, "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d).\n", &a1, &a2, &a3, &a4, &p1, &p2);
-
     sprintf(address, "%d.%d.%d.%d", a1, a2, a3, a4);
     port = 256 * p1 + p2;
 
@@ -195,19 +215,20 @@ int ftp_retrieve(int sockfd, String path) {
     char response[BUF_SIZE];
 
     String cmdPath = buildMessage(RETR_PREFIX, path);
-    printf("%s\n", cmdPath.string);
-
+    
+    printf("Retrieving file...\n");
     if (write(sockfd, cmdPath.string, cmdPath.length) < 0) {
+      perror("path");
       exit(-1);
     }
 
-    receiveFromServer(sockfd, response, BUF_SIZE);
+    if (receiveFromServer(sockfd, response, BUF_SIZE) < 0) {
+        exit(-1);
+    }
     printf("%s", response);
 
     return 0;
 }
-
-
 
 
 
@@ -218,17 +239,19 @@ int ftp_download(int sockfd, ClientInfo info) {
 
     port = ftp_passive_mode(sockfd, address);
     printf("IP = %s\n", address);
-    printf("Port = %d\n", port);
+    printf("Port = %d\n\n", port);
 
     if ( (datafd = initTCP(address, port)) == -1) {
          exit(-1);
     }
 
-    ftp_retrieve(sockfd, info.path);
-    readData(datafd);
-
-    return 0;
+    if (ftp_retrieve(sockfd, info.path) < 0) {
+        exit(-1);
+    }
+    
+    return readData(datafd, info.filename);
 }
+
 
 
 String buildMessage(String prefix, String value) {
@@ -247,40 +270,71 @@ String buildMessage(String prefix, String value) {
 
 
 
-ClientInfo parseURL(char *url) {
-    ClientInfo info;
+int parseURL(ClientInfo *info, char *url) {
+    int n;
     char *token;
+    char *last;
+    char str[BUF_SIZE];
 
-    token = strtok(&url[6], ":");
-    strcpy(info.user.string, token);
+    n = sscanf(url, "ftp://%[^:]:%[^@]@%[^/]/%s", 
+                info->user.string, 
+                info->password.string,
+                info->hostname.string,
+                info->path.string);
+    
+    if (n != 4) {
+        n = sscanf(url, "ftp://%[^/]/%s", 
+                    info->hostname.string,
+                    info->path.string);
 
-    info.user.length = strlen(info.user.string);
-    token = strtok(NULL, "@");
+        if (n != 2) {
+            printf("Error: wrong URL syntax.\n");
+            exit(-1);
+        }
 
-    strcpy(info.password.string, token);
-    info.password.length = strlen(info.password.string);
+        strcpy(info->user.string, "anonymous");
+        strcpy(info->password.string, "mail@domain");
+    }
 
-    token = strtok(NULL, "/");
-    strcpy(info.hostname.string, token);
-    info.hostname.length = strlen(info.hostname.string);
+    strcpy(str, info->path.string);
+    token = strtok(str, "/");
+    while ( (token = strtok(NULL, "/")) != NULL ) {
+        last = token;
+    }
 
-    token = strtok(NULL, "");
-    strcpy(info.path.string, token);
-    info.path.length = strlen(info.path.string);
+    strcpy(info->filename.string, last);
 
-    return info;
+    info->user.length =     strlen(info->user.string);
+    info->password.length = strlen(info->password.string);
+    info->hostname.length = strlen(info->hostname.string);
+    info->path.length =     strlen(info->path.string);
+    info->filename.length = strlen(info->filename.string);
+
+    return 0;
 }
 
 
-void readData(int datafd) {
+int readData(int datafd, String filename) {
     int filefd, bytes;
     char buffer[BUF_SIZE];
 
-    filefd = open("data", O_CREAT | O_WRONLY | O_TRUNC | S_IRWXU);
+    filefd = open(filename.string, O_CREAT | O_WRONLY | O_TRUNC, S_IRWXU);
     if (filefd < 0) {
+        perror(filename.string);
+        exit(-1);
     }
 
     while ( (bytes = read(datafd, buffer, BUF_SIZE)) > 0 ) {
-        write(filefd, buffer, bytes);
+        if (bytes == -1) {
+            perror("read file");
+            exit(-1);
+        }
+
+        if (write(filefd, buffer, bytes) < 0) {
+            perror("write to file");
+            exit(-1);
+        }
     }
+
+    return 0;
 }
