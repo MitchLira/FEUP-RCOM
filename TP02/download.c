@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 
 #define FTP_PORT        21
@@ -33,14 +35,23 @@ typedef struct {
 
 const String USER_PREFIX = { "USER ", sizeof("USER ") };
 const String PASS_PREFIX = { "PASS ", sizeof("PASS ") };
+const String PASV_PREFIX = { "PASV", sizeof("PASV") };
+const String RETR_PREFIX = { "RETR ", sizeof("RETR ") };
+const String NULL_STR = { "", 0 };
+
 
 
 char* getIP(char *hostname);
 int initTCP(char *address, ui port);
 int receiveFromServer(int sockfd, char *msg, ui size);
 void ftp_login(int sockfd, String username, String password);
+ui ftp_passive_mode(int sockfd, char *address);
+int ftp_change_path(int sockfd, String path);
+int ftp_download(int sockfd, ClientInfo info);
 String buildMessage(String prefix, String value);
 ClientInfo parseURL(char *url);
+void readData(int datafd);
+
 
 int main(int argc, char** argv) {
     char *address;
@@ -74,6 +85,7 @@ int main(int argc, char** argv) {
     printf("\n%s", response);
 
     ftp_login(sockfd, info.user, info.password);
+    ftp_download(sockfd, info);
 
     return 0;
 }
@@ -140,7 +152,7 @@ void ftp_login(int sockfd, String username, String password) {
         exit(-1);
     }
 
-	receiveFromServer(sockfd, response, BUF_SIZE);
+	  receiveFromServer(sockfd, response, BUF_SIZE);
     printf("\n%s", response);
 
     String pass = buildMessage(PASS_PREFIX, password);
@@ -153,6 +165,70 @@ void ftp_login(int sockfd, String username, String password) {
     printf("\n%s", response);
 }
 
+
+ui ftp_passive_mode(int sockfd, char *address) {
+    char response[BUF_SIZE];
+    int a1, a2, a3, a4;
+    int p1, p2;
+    ui port;
+
+    String pasv = buildMessage(PASV_PREFIX, NULL_STR);
+
+    if (write(sockfd, pasv.string, pasv.length) < 0) {
+        exit(-1);
+    }
+
+    receiveFromServer(sockfd, response, BUF_SIZE);
+    printf("\n%s", response);
+
+    sscanf(response, "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d).\n", &a1, &a2, &a3, &a4, &p1, &p2);
+
+    sprintf(address, "%d.%d.%d.%d", a1, a2, a3, a4);
+    port = 256 * p1 + p2;
+
+    return port;
+}
+
+
+
+int ftp_retrieve(int sockfd, String path) {
+    char response[BUF_SIZE];
+
+    String cmdPath = buildMessage(RETR_PREFIX, path);
+    printf("%s\n", cmdPath.string);
+
+    if (write(sockfd, cmdPath.string, cmdPath.length) < 0) {
+      exit(-1);
+    }
+
+    receiveFromServer(sockfd, response, BUF_SIZE);
+    printf("%s", response);
+
+    return 0;
+}
+
+
+
+
+
+int ftp_download(int sockfd, ClientInfo info) {
+    ui port;
+    int datafd;
+    char address[BUF_SIZE];
+
+    port = ftp_passive_mode(sockfd, address);
+    printf("IP = %s\n", address);
+    printf("Port = %d\n", port);
+
+    if ( (datafd = initTCP(address, port)) == -1) {
+         exit(-1);
+    }
+
+    ftp_retrieve(sockfd, info.path);
+    readData(datafd);
+
+    return 0;
+}
 
 
 String buildMessage(String prefix, String value) {
@@ -193,4 +269,18 @@ ClientInfo parseURL(char *url) {
     info.path.length = strlen(info.path.string);
 
     return info;
+}
+
+
+void readData(int datafd) {
+    int filefd, bytes;
+    char buffer[BUF_SIZE];
+
+    filefd = open("data", O_CREAT | O_WRONLY | O_TRUNC | S_IRWXU);
+    if (filefd < 0) {
+    }
+
+    while ( (bytes = read(datafd, buffer, BUF_SIZE)) > 0 ) {
+        write(filefd, buffer, bytes);
+    }
 }
