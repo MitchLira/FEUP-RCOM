@@ -159,9 +159,9 @@ String buildMessage(String prefix, String value) {
     String msg;
 
     memcpy(msg.string, prefix.string, prefix.length);
-    memcpy(msg.string + prefix.length - 1, value.string, value.length);
+    memcpy(msg.string + prefix.length -1, value.string, value.length);
 
-    ui size = prefix.length + value.length - 2;
+    ui size = prefix.length + value.length -1;
     msg.string[size++] = '\n';
     msg.length = size;
 
@@ -177,19 +177,24 @@ ClientInfo parseURL(char *url) {
 
     token = strtok(&url[6], ":");
     strcpy(info.user.string, token);
-    info.user.length = strlen(token);
 
+    info.user.length = strlen(info.user.string);
+    printf("%d\n",info.user.length );
     token = strtok(NULL, "@");
+
     strcpy(info.password.string, token);
-    info.password.length = strlen(token);
+    info.password.length = strlen(info.password.string);
+    printf("%d\n",info.password.length );
 
     token = strtok(NULL, "/");
     strcpy(info.hostname.string, token);
-    info.hostname.length = strlen(token);
+    info.hostname.length = strlen(info.hostname.string);
+    printf("%d\n",info.hostname.length );
 
     token = strtok(NULL, "");
     strcpy(info.path.string, token);
-    info.path.length = strlen(token);
+    info.path.length = strlen(info.path.string);
+    printf("%d\n",info.path.length );
 
     return info;
 }
