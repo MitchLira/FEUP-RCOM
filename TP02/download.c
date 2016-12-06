@@ -179,22 +179,18 @@ ClientInfo parseURL(char *url) {
     strcpy(info.user.string, token);
 
     info.user.length = strlen(info.user.string);
-    printf("%d\n",info.user.length );
     token = strtok(NULL, "@");
 
     strcpy(info.password.string, token);
     info.password.length = strlen(info.password.string);
-    printf("%d\n",info.password.length );
 
     token = strtok(NULL, "/");
     strcpy(info.hostname.string, token);
     info.hostname.length = strlen(info.hostname.string);
-    printf("%d\n",info.hostname.length );
 
     token = strtok(NULL, "");
     strcpy(info.path.string, token);
     info.path.length = strlen(info.path.string);
-    printf("%d\n",info.path.length );
 
     return info;
 }
