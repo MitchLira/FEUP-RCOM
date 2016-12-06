@@ -1,7 +1,7 @@
-#include <stdio.h> 
-#include <stdlib.h> 
-#include <errno.h> 
-#include <netdb.h> 
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -15,11 +15,20 @@
 #define BUF_SIZE        2048
 #define STR_MAX_SIZE    4096
 
+
 typedef unsigned int ui;
+
 typedef struct {
     char string[STR_MAX_SIZE];
     ui length;
 } String;
+
+typedef struct {
+    String user;
+    String password;
+    String hostname;
+    String path;
+} ClientInfo;
 
 
 const String USER_PREFIX = { "USER ", sizeof("USER ") };
@@ -31,42 +40,41 @@ int initTCP(char *address, ui port);
 int receiveFromServer(int sockfd, char *msg, ui size);
 void ftp_login(int sockfd, String username, String password);
 String buildMessage(String prefix, String value);
+ClientInfo parseURL(char *url);
 
 int main(int argc, char** argv) {
     char *address;
     char response[BUF_SIZE];
     int sockfd;
+    ClientInfo info;
 
-    if ( (address = getIP(argv[1])) == NULL ) {
+    info = parseURL(argv[1]);
+    printf("\n\n");
+    printf("User - %s\n", info.user.string);
+    printf("Password - %s\n", info.password.string);
+    printf("Hostname - %s\n", info.hostname.string);
+    printf("Url-path - %s\n", info.path.string);
+
+
+
+    if ( (address = getIP(info.hostname.string)) == NULL ) {
         exit(-1);
     }
 
-    printf("\n%s = %s.\n", argv[1], address);
+    printf("\n%s = %s.\n", info.hostname.string, address);
 
    if ( (sockfd = initTCP(address, FTP_PORT)) == -1) {
         exit(-2);
     }
 
-    printf("Connected to %s.\n", argv[1]);
+    printf("Connected to %s.\n", info.hostname.string);
 
 
     receiveFromServer(sockfd, response, BUF_SIZE);
     printf("\n%s", response);
 
+    ftp_login(sockfd, info.user, info.password);
 
-    String user;
-    strcpy(user.string, "");
-    user.length = sizeof("");
-    
-    
-
-
-    String password;
-    strcpy(password.string, "");
-    password.length = sizeof("");
-
-    ftp_login(sockfd, user, password);
-    
     return 0;
 }
 
@@ -79,7 +87,7 @@ char* getIP(char *hostname) {
         herror("gethostbyname");
         return NULL;
     }
-            
+
     return inet_ntoa(*((struct in_addr *)h->h_addr));
 }
 
@@ -127,20 +135,20 @@ void ftp_login(int sockfd, String username, String password) {
     char response[BUF_SIZE];
 
     String user = buildMessage(USER_PREFIX, username);
-    
+
     if (write(sockfd, user.string, user.length) < 0) {
         exit(-1);
     }
 
 	receiveFromServer(sockfd, response, BUF_SIZE);
     printf("\n%s", response);
-    
+
     String pass = buildMessage(PASS_PREFIX, password);
 
     if (write(sockfd, pass.string, pass.length) < 0) {
         exit(-1);
     }
-    
+
     receiveFromServer(sockfd, response, BUF_SIZE);
     printf("\n%s", response);
 }
@@ -158,4 +166,30 @@ String buildMessage(String prefix, String value) {
     msg.length = size;
 
     return msg;
+}
+
+
+
+
+ClientInfo parseURL(char *url) {
+    ClientInfo info;
+    char *token;
+
+    token = strtok(&url[6], ":");
+    strcpy(info.user.string, token);
+    info.user.length = strlen(token);
+
+    token = strtok(NULL, "@");
+    strcpy(info.password.string, token);
+    info.password.length = strlen(token);
+
+    token = strtok(NULL, "/");
+    strcpy(info.hostname.string, token);
+    info.hostname.length = strlen(token);
+
+    token = strtok(NULL, "");
+    strcpy(info.path.string, token);
+    info.path.length = strlen(token);
+
+    return info;
 }
