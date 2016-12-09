@@ -298,6 +298,7 @@ int parseURL(ClientInfo *info, char *url) {
 
     strcpy(str, info->path.string);
     token = strtok(str, "/");
+    last = token;
     while ( (token = strtok(NULL, "/")) != NULL ) {
         last = token;
     }
