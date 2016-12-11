@@ -85,8 +85,12 @@ int main(int argc, char** argv) {
 
     if (receiveFromServer(sockfd, response, BUF_SIZE) < 0) {
         exit(-1);
-    } 
-    printf("%s\n", response);
+    }
+ 
+    printf("%s\n", response);    
+    if (response[0] == '5') {
+	exit(-1);
+    }
 
     if (ftp_login(sockfd, info.user, info.password)) {
         exit(-1);
@@ -165,8 +169,11 @@ int ftp_login(int sockfd, String username, String password) {
 	if (receiveFromServer(sockfd, response, BUF_SIZE) < 0) {
         exit(-1);
     }
-    printf("%s\n", response);
 
+    printf("%s\n", response);
+    if (response[0] == '5') {
+	exit(-1);
+    }
 
     String pass = buildMessage(PASS_PREFIX, password);
 
@@ -178,6 +185,9 @@ int ftp_login(int sockfd, String username, String password) {
 
     receiveFromServer(sockfd, response, BUF_SIZE);
     printf("%s\n", response);
+    if (response[0] == '5') {
+	exit(-1);
+    }
 
     return 0;
 }
@@ -200,7 +210,11 @@ ui ftp_passive_mode(int sockfd, char *address) {
     if (receiveFromServer(sockfd, response, BUF_SIZE) < 0) {
         exit(0);
     }
+
     printf("%s", response);
+    if (response[0] == '5') {
+	exit(-1);
+    }
 
     sscanf(response, "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d).\n", &a1, &a2, &a3, &a4, &p1, &p2);
     sprintf(address, "%d.%d.%d.%d", a1, a2, a3, a4);
@@ -225,7 +239,11 @@ int ftp_retrieve(int sockfd, String path) {
     if (receiveFromServer(sockfd, response, BUF_SIZE) < 0) {
         exit(-1);
     }
+
     printf("%s", response);
+    if (response[0] == '5') {
+	exit(-1);
+    }
 
     return 0;
 }
