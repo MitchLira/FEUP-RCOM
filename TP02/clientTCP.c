@@ -19,8 +19,8 @@ int main(int argc, char** argv){
 	int	sockfd;
 	struct	sockaddr_in server_addr;
 	char	buf[] = "Mensagem de teste na travessia da pilha TCP/IP\n";
-	char log[] = "USER up201403441\n";
-	char pw[] = "PASS miriamcmcg1996\n";
+	char log[] = "\n";
+	char pw[] = "\n";
 	char teste;
 	int	bytes;
 
