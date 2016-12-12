@@ -96,7 +96,12 @@ int main(int argc, char** argv) {
         exit(-1);
     }
 
-    return ftp_download(sockfd, info);
+    if (ftp_download(sockfd, info)) {
+	exit(-1);
+    }
+
+    close(sockfd);
+    return 0;
 }
 
 
@@ -355,5 +360,6 @@ int readData(int datafd, String filename) {
         }
     }
 
+    close(filefd);
     return 0;
 }
